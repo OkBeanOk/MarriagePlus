@@ -46,6 +46,19 @@ titles:
 nicknames:
   max-length: 24
 
+#Config Placeholders
+#%player%
+#%partner%
+#%player_pronouns%
+#%player_subject%
+#%player_object%
+#%player_possessive%
+#%partner_pronouns%
+#%partner_subject%
+#%partner_object%
+#%partner_possessive%
+#%partner_nickname%
+
 actions:
   kiss:
     particle: "HEART"

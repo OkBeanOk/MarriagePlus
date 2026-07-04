@@ -1,6 +1,7 @@
 name: MarriagePlus
-version: '1.2'
-
+version: '1.2.1'
+softdepend:
+  - PlaceholderAPI
 main: com.okbeanok.marriagePlus.MarriagePlus
 api-version: '1.21'
 load: POSTWORLD

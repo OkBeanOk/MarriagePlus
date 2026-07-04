@@ -15,4 +15,5 @@ com\okbeanok\marriagePlus\utils\TextUtils.class
 com\okbeanok\marriagePlus\models\HelpEntry.class
 com\okbeanok\marriagePlus\managers\SocialManager.class
 com\okbeanok\marriagePlus\managers\BackpackManager.class
+com\okbeanok\marriagePlus\hooks\MarriagePlusExpansion.class
 com\okbeanok\marriagePlus\listeners\ChatListener.class

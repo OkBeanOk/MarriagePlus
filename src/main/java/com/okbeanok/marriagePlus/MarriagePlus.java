@@ -1,6 +1,7 @@
 package com.okbeanok.marriagePlus;
 
 import com.okbeanok.marriagePlus.commands.MarryCommand;
+import com.okbeanok.marriagePlus.hooks.MarriagePlusExpansion;
 import com.okbeanok.marriagePlus.listeners.ChatListener;
 import com.okbeanok.marriagePlus.listeners.InventoryListener;
 import com.okbeanok.marriagePlus.listeners.PartnerPvpListener;
@@ -55,8 +56,19 @@ public final class MarriagePlus extends JavaPlugin {
 
 		registerCommand();
 		registerListeners();
+		registerPlaceholderApi();
 
 		getLogger().info("MarriagePlus enabled!");
+	}
+
+	private void registerPlaceholderApi() {
+		if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") == null) {
+			getLogger().info("PlaceholderAPI not found. PlaceholderAPI support disabled.");
+			return;
+		}
+
+		new MarriagePlusExpansion(this).register();
+		getLogger().info("PlaceholderAPI support enabled.");
 	}
 
 	@Override
