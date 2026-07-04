@@ -1,9 +1,13 @@
 # Plugin data is stored here.
 # Do not manually edit this section while the server is running.
-data:
-  marriages: {}
-  homes: {}
-  backpack-allowed: []
-  pvp-enabled-couples: []
-  backpacks: {}
-  pronouns: {}
+marriages: {}
+marriage-dates: {}
+homes: {}
+backpack-allowed: []
+pvp-enabled-couples: []
+backpacks: {}
+pronouns: {}
+marriage-titles: {}
+partner-nicknames: {}
+marriage-requests-disabled: []
+blocked-marriage-requests: []

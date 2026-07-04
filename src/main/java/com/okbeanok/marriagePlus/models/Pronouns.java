@@ -1,4 +1,4 @@
 package com.okbeanok.marriagePlus.models;
 
-public class Pronouns {
+public record Pronouns(String subject, String object, String possessive, String display) {
 }

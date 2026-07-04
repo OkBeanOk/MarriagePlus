@@ -1,4 +1,4 @@
 package com.okbeanok.marriagePlus.models;
 
-public class HelpEntry {
+public record HelpEntry(String command, String description, String suggestedCommand) {
 }

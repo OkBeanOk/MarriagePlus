@@ -5,6 +5,9 @@ settings:
   # Set this to true if you want NSFW actions such as /marry fuck to work.
   nsfw-actions-enabled: false
 
+  # Notify a player when their partner joins or leaves.
+  partner-join-notifications: true
+
   # How long a marriage request lasts before expiring.
   proposal-expire-seconds: 60
 
@@ -35,6 +38,13 @@ settings:
 
 messages:
   nsfw-disabled: "&cNSFW marriage actions are disabled on this server."
+
+titles:
+  max-length: 32
+  default-format: "&d❤ Married to %partner%"
+
+nicknames:
+  max-length: 24
 
 actions:
   kiss:

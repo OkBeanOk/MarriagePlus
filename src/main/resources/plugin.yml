@@ -74,6 +74,18 @@ permissions:
     description: Allows viewing marriage anniversary
     default: true
 
-  marriageplus.command.pronouns:
-    description: Allows pronoun commands
+  marriageplus.command.title:
+    description: Allows marriage title commands
+    default: true
+
+  marriageplus.command.nickname:
+    description: Allows partner nickname commands
+    default: true
+
+  marriageplus.command.requests:
+    description: Allows toggling marriage requests
+    default: true
+
+  marriageplus.command.block:
+    description: Allows blocking marriage requests from players
     default: true
