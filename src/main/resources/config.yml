@@ -1,0 +1,86 @@
+# SmpMarriage Configuration
+
+settings:
+  # NSFW actions are disabled by default.
+  # Set this to true if you want NSFW actions such as /marry fuck to work.
+  nsfw-actions-enabled: false
+
+  # How long a marriage request lasts before expiring.
+  proposal-expire-seconds: 60
+
+  # How long a player has to confirm /marry divorce confirm.
+  divorce-confirm-seconds: 30
+
+  cooldowns:
+    # Cooldown for /marry kiss, /marry hug, /marry cuddle, /marry highfive, etc.
+    action-seconds: 5
+
+    # Cooldown for /marry tp.
+    tp-seconds: 30
+
+    # Cooldown for /marry home.
+    home-seconds: 30
+
+    # Cooldown for /marry gift.
+    gift-seconds: 2
+
+    # Cooldown for /marry backpack.
+    backpack-seconds: 2
+
+  default-pronouns:
+    subject: "they"
+    object: "them"
+    possessive: "their"
+    display: "they/them"
+
+messages:
+  nsfw-disabled: "&cNSFW marriage actions are disabled on this server."
+
+actions:
+  kiss:
+    particle: "HEART"
+    sound: "entity.player.levelup"
+    broadcast-messages:
+      - "&d❤ %player% kissed %partner%! ❤"
+      - "&d%player% gives %partner% a sweet kiss."
+      - "&d%player% and %partner% share a romantic kiss."
+      - "&d%player% blows a kiss to %partner%."
+      - "&d%player% kissed %partner% and made %partner_object% smile."
+
+  hug:
+    particle: "HAPPY_VILLAGER"
+    sound: "entity.villager.yes"
+    broadcast-messages:
+      - "&d🤗 %player% hugged %partner%! 🤗"
+      - "&d%player% gives %partner% a warm hug."
+      - "&d%player% wraps their arms around %partner%."
+      - "&d%player% gives %partner% the biggest hug ever."
+      - "&d%partner% smiles as %player% hugs %partner_object%."
+
+  cuddle:
+    particle: "HEART"
+    sound: "entity.cat.purr"
+    broadcast-messages:
+      - "&d❤ %player% cuddled with %partner%! ❤"
+      - "&d%player% and %partner% cuddle together."
+      - "&d%player% snuggles close to %partner%."
+      - "&d%player% and %partner% are having a cozy moment."
+      - "&d%player% cuddled %partner% because %player_subject% loves %partner_object%."
+
+  highfive:
+    particle: "CRIT"
+    sound: "entity.player.attack.strong"
+    broadcast-messages:
+      - "&e%player% high-fived %partner%!"
+      - "&e%player% and %partner% did an epic high-five!"
+      - "&e%player% gives %partner% a happy high-five!"
+      - "&e%player% and %partner% celebrate together!"
+
+  fuck:
+    nsfw: true
+    particle: "HEART"
+    sound: "entity.player.levelup"
+    broadcast-messages:
+      - "&d%player% and %partner% shared an adult private moment."
+      - "&d%player% and %partner% had an adult interaction."
+      - "&d%player% and %partner% spent some private time together."

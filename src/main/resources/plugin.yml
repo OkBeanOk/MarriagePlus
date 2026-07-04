@@ -1,0 +1,79 @@
+name: MarriagePlus
+version: '${version}'
+
+main: com.okbeanok.marriagePlus.MarriagePlus
+api-version: '1.21'
+load: POSTWORLD
+
+commands:
+  marry:
+    description: Marriage command
+    usage: /marry
+    aliases:
+      - marriage
+      - spouse
+
+permissions:
+  marriageplus.admin:
+    description: Allows admin marriage commands
+    default: op
+
+  marriageplus.priest:
+    description: Allows priest marriage commands
+    default: op
+
+  marriageplus.command.me:
+    description: Allows sending marriage requests
+    default: true
+
+  marriageplus.command.divorce:
+    description: Allows divorcing your partner
+    default: true
+
+  marriageplus.command.list:
+    description: Allows viewing married players
+    default: true
+
+  marriageplus.command.partner:
+    description: Allows viewing your partner
+    default: true
+
+  marriageplus.command.status:
+    description: Allows viewing marriage status
+    default: true
+
+  marriageplus.command.tp:
+    description: Allows teleporting to partner
+    default: true
+
+  marriageplus.command.home:
+    description: Allows couple home commands
+    default: true
+
+  marriageplus.command.chat:
+    description: Allows marriage chat
+    default: true
+
+  marriageplus.command.pvp:
+    description: Allows toggling partner PvP
+    default: true
+
+  marriageplus.command.actions:
+    description: Allows marriage actions like kiss, hug, and cuddle
+    default: true
+
+  marriageplus.command.gift:
+    description: Allows gifting items to partner
+    default: true
+
+  marriageplus.command.backpack:
+    description: Allows partner backpack usage
+    default: true
+
+  marriageplus.command.anniversary:
+    description: Allows viewing marriage anniversary
+    default: true
+
+  marriageplus.command.pronouns:
+    description: Allows pronoun commands
+    default: true
