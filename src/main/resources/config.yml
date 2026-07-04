@@ -8,6 +8,11 @@ settings:
   # Notify a player when their partner joins or leaves.
   partner-join-notifications: true
 
+  # Notify admins when a new plugin version is available.
+  update-checker:
+    enabled: true
+    notify-admins-on-join: true
+
   # How long a marriage request lasts before expiring.
   proposal-expire-seconds: 60
 

@@ -1,5 +1,6 @@
 com\okbeanok\marriagePlus\listeners\InventoryListener.class
 com\okbeanok\marriagePlus\managers\RequestManager.class
+com\okbeanok\marriagePlus\listeners\UpdateNotificationListener.class
 com\okbeanok\marriagePlus\listeners\PlayerConnectionListener.class
 com\okbeanok\marriagePlus\MarriagePlus.class
 com\okbeanok\marriagePlus\managers\MarriageManager.class
@@ -13,6 +14,7 @@ com\okbeanok\marriagePlus\listeners\PartnerPvpListener.class
 com\okbeanok\marriagePlus\managers\HomeManager.class
 com\okbeanok\marriagePlus\utils\TextUtils.class
 com\okbeanok\marriagePlus\models\HelpEntry.class
+com\okbeanok\marriagePlus\utils\UpdateChecker.class
 com\okbeanok\marriagePlus\managers\SocialManager.class
 com\okbeanok\marriagePlus\managers\BackpackManager.class
 com\okbeanok\marriagePlus\hooks\MarriagePlusExpansion.class

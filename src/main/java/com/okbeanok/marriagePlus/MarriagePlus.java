@@ -2,10 +2,7 @@ package com.okbeanok.marriagePlus;
 
 import com.okbeanok.marriagePlus.commands.MarryCommand;
 import com.okbeanok.marriagePlus.hooks.MarriagePlusExpansion;
-import com.okbeanok.marriagePlus.listeners.ChatListener;
-import com.okbeanok.marriagePlus.listeners.InventoryListener;
-import com.okbeanok.marriagePlus.listeners.PartnerPvpListener;
-import com.okbeanok.marriagePlus.listeners.PlayerConnectionListener;
+import com.okbeanok.marriagePlus.listeners.*;
 import com.okbeanok.marriagePlus.managers.BackpackManager;
 import com.okbeanok.marriagePlus.managers.CooldownManager;
 import com.okbeanok.marriagePlus.managers.DataManager;
@@ -14,6 +11,7 @@ import com.okbeanok.marriagePlus.managers.MarriageManager;
 import com.okbeanok.marriagePlus.managers.PronounManager;
 import com.okbeanok.marriagePlus.managers.RequestManager;
 import com.okbeanok.marriagePlus.managers.SocialManager;
+import com.okbeanok.marriagePlus.utils.UpdateChecker;
 import org.bukkit.Bukkit;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -28,6 +26,7 @@ public final class MarriagePlus extends JavaPlugin {
 	private PronounManager pronounManager;
 	private SocialManager socialManager;
 	private CooldownManager cooldownManager;
+	private UpdateChecker updateChecker;
 
 	@Override
 	public void onEnable() {
@@ -40,6 +39,7 @@ public final class MarriagePlus extends JavaPlugin {
 		backpackManager = new BackpackManager(this, marriageManager, cooldownManager);
 		pronounManager = new PronounManager(this);
 		socialManager = new SocialManager(this, marriageManager);
+		updateChecker = new UpdateChecker(this);
 
 		dataManager = new DataManager(
 				this,
@@ -57,6 +57,8 @@ public final class MarriagePlus extends JavaPlugin {
 		registerCommand();
 		registerListeners();
 		registerPlaceholderApi();
+
+		updateChecker.checkForUpdates();
 
 		getLogger().info("MarriagePlus enabled!");
 	}
@@ -106,6 +108,7 @@ public final class MarriagePlus extends JavaPlugin {
 		Bukkit.getPluginManager().registerEvents(new InventoryListener(backpackManager), this);
 		Bukkit.getPluginManager().registerEvents(new PartnerPvpListener(marriageManager), this);
 		Bukkit.getPluginManager().registerEvents(new PlayerConnectionListener(this, marriageManager, socialManager), this);
+		Bukkit.getPluginManager().registerEvents(new UpdateNotificationListener(this, updateChecker), this);
 	}
 
 	public DataManager dataManager() {
@@ -138,5 +141,8 @@ public final class MarriagePlus extends JavaPlugin {
 
 	public CooldownManager cooldownManager() {
 		return cooldownManager;
+	}
+	public UpdateChecker updateChecker() {
+		return updateChecker;
 	}
 }

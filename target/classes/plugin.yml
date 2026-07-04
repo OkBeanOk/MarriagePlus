@@ -1,5 +1,5 @@
 name: MarriagePlus
-version: '1.2.1'
+version: '1.2.2'
 softdepend:
   - PlaceholderAPI
 main: com.okbeanok.marriagePlus.MarriagePlus

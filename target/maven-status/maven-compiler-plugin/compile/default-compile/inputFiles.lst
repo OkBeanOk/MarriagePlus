@@ -4,6 +4,7 @@ D:\Minetropica-Dev\Other Projects\smpMarriage\src\main\java\com\okbeanok\marriag
 D:\Minetropica-Dev\Other Projects\smpMarriage\src\main\java\com\okbeanok\marriagePlus\listeners\InventoryListener.java
 D:\Minetropica-Dev\Other Projects\smpMarriage\src\main\java\com\okbeanok\marriagePlus\listeners\PartnerPvpListener.java
 D:\Minetropica-Dev\Other Projects\smpMarriage\src\main\java\com\okbeanok\marriagePlus\listeners\PlayerConnectionListener.java
+D:\Minetropica-Dev\Other Projects\smpMarriage\src\main\java\com\okbeanok\marriagePlus\listeners\UpdateNotificationListener.java
 D:\Minetropica-Dev\Other Projects\smpMarriage\src\main\java\com\okbeanok\marriagePlus\managers\BackpackManager.java
 D:\Minetropica-Dev\Other Projects\smpMarriage\src\main\java\com\okbeanok\marriagePlus\managers\CooldownManager.java
 D:\Minetropica-Dev\Other Projects\smpMarriage\src\main\java\com\okbeanok\marriagePlus\managers\DataManager.java
@@ -16,3 +17,4 @@ D:\Minetropica-Dev\Other Projects\smpMarriage\src\main\java\com\okbeanok\marriag
 D:\Minetropica-Dev\Other Projects\smpMarriage\src\main\java\com\okbeanok\marriagePlus\models\HelpEntry.java
 D:\Minetropica-Dev\Other Projects\smpMarriage\src\main\java\com\okbeanok\marriagePlus\models\Pronouns.java
 D:\Minetropica-Dev\Other Projects\smpMarriage\src\main\java\com\okbeanok\marriagePlus\utils\TextUtils.java
+D:\Minetropica-Dev\Other Projects\smpMarriage\src\main\java\com\okbeanok\marriagePlus\utils\UpdateChecker.java
