@@ -104,8 +104,8 @@ public class MarryCommand implements TabExecutor {
 			case "partner" -> runWithPermission(sender, "marriageplus.command.partner", this::showPartner);
 			case "status" -> runWithPermission(sender, "marriageplus.command.status", this::showStatus);
 			case "tp" -> runWithPermission(sender, "marriageplus.command.tp", this::teleportToPartner);
-			case "sethome" -> runWithPermission(sender, "marriageplus.command.home", homeManager::setHome);
-			case "home" -> runWithPermission(sender, "marriageplus.command.home", homeManager::goHome);
+			case "sethome" -> runWithPermission(sender, "marriageplus.command.home", player -> homeManager.setHome(player, args));
+			case "home" -> runWithPermission(sender, "marriageplus.command.home", player -> homeManager.goHome(player, args));
 			case "chat" -> runWithPermission(sender, "marriageplus.command.chat", player -> requestManager.marriageChat(player, args));
 			case "listenchat" -> requirePlayer(sender, requestManager::toggleListenChat);
 			case "pvpon" -> runWithPermission(sender, "marriageplus.command.pvp", player -> marriageManager.setPartnerPvp(player, true));
@@ -157,6 +157,8 @@ public class MarryCommand implements TabExecutor {
 			if (canUse(sender, "marriageplus.command.home")) {
 				completions.add("sethome");
 				completions.add("home");
+				completions.add("homes");
+				completions.add("delhome");
 			}
 
 			addIfAllowed(sender, completions, "marriageplus.command.chat", "chat");
@@ -283,8 +285,12 @@ public class MarryCommand implements TabExecutor {
 				help("/marry partner", "Shows your partner", "/marry partner"),
 				help("/marry status", "Shows your marriage status", "/marry status"),
 				help("/marry tp", "Teleports to your partner", "/marry tp"),
-				help("/marry sethome", "Sets your couple home", "/marry sethome"),
-				help("/marry home", "Teleports to your couple home", "/marry home"),
+				help("/marry sethome", "Sets your main couple home", "/marry sethome"),
+				help("/marry sethome <name>", "Sets a named couple home", "/marry sethome "),
+				help("/marry home", "Teleports to your main couple home", "/marry home"),
+				help("/marry home <name>", "Teleports to a named couple home", "/marry home "),
+				help("/marry homes", "Lists your couple homes", "/marry homes"),
+				help("/marry delhome <name>", "Deletes a named couple home", "/marry delhome "),
 				help("/marry chat <message>", "Sends private couple chat", "/marry chat "),
 				help("/marry chat toggle", "Toggles couple chat mode", "/marry chat toggle"),
 				help("/marry pvpon", "Enables PvP with your partner", "/marry pvpon"),
@@ -494,7 +500,7 @@ public class MarryCommand implements TabExecutor {
 		player.sendMessage(color("&7Your Pronouns: &f" + pronounManager.getPronouns(player.getUniqueId()).display()));
 		player.sendMessage(color("&7Partner Pronouns: &f" + pronounManager.getPronouns(partnerId).display()));
 		player.sendMessage(color("&7Married For: &f" + days + " day(s)"));
-		player.sendMessage(color("&7Couple Home: " + (homeManager.hasHome(player.getUniqueId()) ? "&aSet" : "&cNot Set")));
+		player.sendMessage(color("&7Couple Homes: &f" + homeManager.getHomeCount(player.getUniqueId()) + "&7/&f" + homeManager.getMaxHomes(player)));
 		player.sendMessage(color("&7Partner PvP: " + (marriageManager.pvpEnabledCouples().contains(marriageManager.coupleKey(player.getUniqueId(), partnerId)) ? "&aOn" : "&cOff")));
 		player.sendMessage(color("&7Your Backpack Access: " + (backpackManager.backpackAllowed().contains(player.getUniqueId()) ? "&aAllowed" : "&cBlocked")));
 		player.sendMessage(color("&7Partner Backpack Access: " + (backpackManager.backpackAllowed().contains(partnerId) ? "&aAllowed" : "&cBlocked")));
@@ -766,7 +772,7 @@ public class MarryCommand implements TabExecutor {
 	private boolean isPlayerName(String value) {
 		return !Set.of(
 				"help", "me", "accept", "deny", "decline", "divorce", "list", "partner", "status",
-				"tp", "sethome", "home", "chat", "listenchat", "pvpon", "pvpoff", "kiss", "hug",
+				"tp", "sethome", "home", "homes", "delhome", "chat", "listenchat", "pvpon", "pvpoff", "kiss", "hug",
 				"cuddle", "highfive", "fuck", "gift", "backpack", "anniversary", "pronouns",
 				"title", "nickname", "requests", "block", "unblock", "blocklist",
 				"priest", "reload"

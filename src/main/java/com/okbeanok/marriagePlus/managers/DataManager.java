@@ -6,6 +6,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.Inventory;
@@ -13,6 +14,7 @@ import org.bukkit.inventory.ItemStack;
 
 import java.io.File;
 import java.io.IOException;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -31,6 +33,10 @@ public class DataManager {
 
 	private File dataFile;
 	private FileConfiguration dataConfig;
+
+	private boolean mysqlEnabled;
+	private Connection mysqlConnection;
+	private String mysqlTableName;
 
 	public DataManager(
 			MarriagePlus plugin,
@@ -74,7 +80,7 @@ public class DataManager {
 					dataConfig.set("marriage-requests-disabled", new ArrayList<>());
 					dataConfig.set("blocked-marriage-requests", new ArrayList<>());
 
-					saveDataFile();
+					saveYamlDataFile();
 				}
 			} catch (IOException exception) {
 				plugin.getLogger().severe("Could not create data.yml: " + exception.getMessage());
@@ -82,9 +88,134 @@ public class DataManager {
 		}
 
 		dataConfig = YamlConfiguration.loadConfiguration(dataFile);
+
+		mysqlEnabled = plugin.getConfig().getString("storage.type", "YAML").equalsIgnoreCase("MYSQL");
+
+		if (mysqlEnabled) {
+			setupMysql();
+
+			if (mysqlConnection != null) {
+				loadMysqlDataIntoConfig();
+			} else {
+				mysqlEnabled = false;
+				plugin.getLogger().warning("MySQL storage failed to initialize. Falling back to YAML storage.");
+			}
+		}
 	}
 
 	public void saveDataFile() {
+		if (mysqlEnabled) {
+			saveMysqlDataFile();
+			return;
+		}
+
+		saveYamlDataFile();
+	}
+	private void setupMysql() {
+		String host = plugin.getConfig().getString("storage.mysql.host", "localhost");
+		int port = plugin.getConfig().getInt("storage.mysql.port", 3306);
+		String database = plugin.getConfig().getString("storage.mysql.database", "marriageplus");
+		String username = plugin.getConfig().getString("storage.mysql.username", "root");
+		String password = plugin.getConfig().getString("storage.mysql.password", "");
+		boolean useSsl = plugin.getConfig().getBoolean("storage.mysql.use-ssl", false);
+		String tablePrefix = plugin.getConfig().getString("storage.mysql.table-prefix", "marriageplus_");
+
+		mysqlTableName = tablePrefix + "data";
+
+		String jdbcUrl = "jdbc:mysql://" + host + ":" + port + "/" + database
+				+ "?useSSL=" + useSsl
+				+ "&allowPublicKeyRetrieval=true"
+				+ "&characterEncoding=utf8"
+				+ "&useUnicode=true";
+
+		try {
+			mysqlConnection = DriverManager.getConnection(jdbcUrl, username, password);
+			createMysqlTables();
+
+			plugin.getLogger().info("Connected to MySQL storage.");
+		} catch (SQLException exception) {
+			plugin.getLogger().severe("Could not connect to MySQL: " + exception.getMessage());
+			mysqlConnection = null;
+		}
+	}
+
+	private void createMysqlTables() throws SQLException {
+		String sql = """
+				CREATE TABLE IF NOT EXISTS `%s` (
+					`data_key` VARCHAR(64) NOT NULL PRIMARY KEY,
+					`data_value` LONGTEXT NOT NULL,
+					`updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+				) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+				""".formatted(mysqlTableName);
+
+		try (PreparedStatement statement = mysqlConnection.prepareStatement(sql)) {
+			statement.executeUpdate();
+		}
+	}
+
+	private void loadMysqlDataIntoConfig() {
+		String sql = "SELECT data_value FROM `" + mysqlTableName + "` WHERE data_key = ?";
+
+		try (PreparedStatement statement = mysqlConnection.prepareStatement(sql)) {
+			statement.setString(1, "data");
+
+			try (ResultSet resultSet = statement.executeQuery()) {
+				if (!resultSet.next()) {
+					saveMysqlDataFile();
+					plugin.getLogger().info("Created initial MySQL data storage.");
+					return;
+				}
+
+				String rawYaml = resultSet.getString("data_value");
+
+				if (rawYaml == null || rawYaml.isBlank()) {
+					saveMysqlDataFile();
+					return;
+				}
+
+				YamlConfiguration mysqlConfig = new YamlConfiguration();
+				mysqlConfig.loadFromString(rawYaml);
+				dataConfig = mysqlConfig;
+
+				plugin.getLogger().info("Loaded MarriagePlus data from MySQL.");
+			}
+		} catch (SQLException | InvalidConfigurationException exception) {
+			plugin.getLogger().severe("Could not load MySQL data: " + exception.getMessage());
+		}
+	}
+
+	private void saveMysqlDataFile() {
+		if (mysqlConnection == null) {
+			saveYamlDataFile();
+			return;
+		}
+
+		String sql = "INSERT INTO `" + mysqlTableName + "` (data_key, data_value) VALUES (?, ?) "
+				+ "ON DUPLICATE KEY UPDATE data_value = VALUES(data_value)";
+
+		try (PreparedStatement statement = mysqlConnection.prepareStatement(sql)) {
+			statement.setString(1, "data");
+			statement.setString(2, dataConfig.saveToString());
+			statement.executeUpdate();
+		} catch (SQLException exception) {
+			plugin.getLogger().severe("Could not save MySQL data: " + exception.getMessage());
+		}
+	}
+
+	public void closeMysql() {
+		if (mysqlConnection == null) {
+			return;
+		}
+
+		try {
+			mysqlConnection.close();
+			plugin.getLogger().info("Closed MySQL connection.");
+		} catch (SQLException exception) {
+			plugin.getLogger().warning("Could not close MySQL connection: " + exception.getMessage());
+		}
+	}
+
+	private void saveYamlDataFile() {
 		try {
 			dataConfig.save(dataFile);
 		} catch (IOException exception) {
@@ -134,8 +265,10 @@ public class DataManager {
 	}
 
 	private void saveHomes() {
-		for (Map.Entry<UUID, Location> entry : homeManager.homes().entrySet()) {
-			saveLocation("homes." + entry.getKey(), entry.getValue());
+		for (Map.Entry<UUID, Map<String, Location>> playerEntry : homeManager.homes().entrySet()) {
+			for (Map.Entry<String, Location> homeEntry : playerEntry.getValue().entrySet()) {
+				saveLocation("homes." + playerEntry.getKey() + "." + homeEntry.getKey(), homeEntry.getValue());
+			}
 		}
 	}
 
@@ -237,15 +370,34 @@ public class DataManager {
 			return;
 		}
 
-		for (String key : homesSection.getKeys(false)) {
+		for (String playerKey : homesSection.getKeys(false)) {
 			try {
-				Location location = loadLocation("homes." + key);
+				UUID playerId = UUID.fromString(playerKey);
+				ConfigurationSection playerHomesSection = dataConfig.getConfigurationSection("homes." + playerKey);
 
-				if (location != null) {
-					homeManager.homes().put(UUID.fromString(key), location);
+				if (playerHomesSection == null) {
+					continue;
+				}
+
+				if (playerHomesSection.contains("world")) {
+					Location oldHome = loadLocation("homes." + playerKey);
+
+					if (oldHome != null) {
+						homeManager.setHomeFor(playerId, HomeManager.DEFAULT_HOME_NAME, oldHome);
+					}
+
+					continue;
+				}
+
+				for (String homeName : playerHomesSection.getKeys(false)) {
+					Location location = loadLocation("homes." + playerKey + "." + homeName);
+
+					if (location != null) {
+						homeManager.setHomeFor(playerId, homeName, location);
+					}
 				}
 			} catch (IllegalArgumentException exception) {
-				plugin.getLogger().warning("Invalid home entry in data.yml: " + key);
+				plugin.getLogger().warning("Invalid home entry in data.yml: " + playerKey);
 			}
 		}
 	}

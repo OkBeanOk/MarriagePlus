@@ -1,4 +1,17 @@
-# SmpMarriage Configuration
+# MarriagePlus Configuration
+
+storage:
+  # YAML or MYSQL
+  type: YAML
+
+  mysql:
+    host: "localhost"
+    port: 3306
+    database: "marriageplus"
+    username: "root"
+    password: "password"
+    use-ssl: false
+    table-prefix: "marriageplus_"
 
 settings:
   # NSFW actions are disabled by default.
@@ -47,6 +60,10 @@ messages:
 titles:
   max-length: 32
   default-format: "&d❤ Married to %partner%"
+
+homes:
+  max-homes-default: 3
+  max-name-length: 16
 
 nicknames:
   max-length: 24

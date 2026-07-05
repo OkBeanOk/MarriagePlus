@@ -76,6 +76,7 @@ public final class MarriagePlus extends JavaPlugin {
 	@Override
 	public void onDisable() {
 		dataManager.saveData();
+		dataManager.closeMysql();
 		getLogger().info("MarriagePlus has been disabled!");
 	}
 

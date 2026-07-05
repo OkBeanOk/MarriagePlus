@@ -5,6 +5,7 @@ import com.okbeanok.marriagePlus.models.Pronouns;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.UUID;
@@ -74,6 +75,8 @@ public class MarriagePlusExpansion extends PlaceholderExpansion {
 			case "pvp" -> partnerId == null ? "false" : String.valueOf(plugin.marriageManager().pvpEnabledCouples().contains(plugin.marriageManager().coupleKey(playerId, partnerId)));
 			case "chat_toggle" -> String.valueOf(plugin.requestManager().coupleChatToggled().contains(playerId));
 			case "requests_enabled" -> String.valueOf(!plugin.requestManager().marriageRequestsDisabled().contains(playerId));
+			case "home_count" -> String.valueOf(plugin.homeManager().getHomeCount(playerId));
+			case "max_homes" -> playerMaxHomes(offlinePlayer);
 			default -> null;
 		};
 	}
@@ -111,5 +114,13 @@ public class MarriagePlusExpansion extends PlaceholderExpansion {
 		}
 
 		return Math.max(0L, (System.currentTimeMillis() - date) / 86_400_000L);
+	}
+
+	private String playerMaxHomes(OfflinePlayer offlinePlayer) {
+		if (offlinePlayer instanceof Player player) {
+			return String.valueOf(plugin.homeManager().getMaxHomes(player));
+		}
+
+		return String.valueOf(plugin.getConfig().getInt("homes.max-homes-default", 3));
 	}
 }
