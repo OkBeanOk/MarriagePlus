@@ -28,16 +28,18 @@ public class PronounManager {
 		if (args.length == 1) {
 			Pronouns playerPronouns = getPronouns(player.getUniqueId());
 
-			player.sendMessage(color("&dYour pronouns are &f" + playerPronouns.display() + "&d."));
-			player.sendMessage(color("&7Use &f/marry pronouns he/him&7, &f/marry pronouns she/her&7, &f/marry pronouns they/them&7, &f/marry pronouns any&7."));
-			player.sendMessage(color("&7Custom: &f/marry pronouns custom <subject> <object> <possessive>"));
+			plugin.langManager().send(player, "pronouns.current", Map.of(
+					"%pronouns%", playerPronouns.display()
+			));
+			plugin.langManager().send(player, "pronouns.usage");
+			plugin.langManager().send(player, "pronouns.custom-example");
 			return;
 		}
 
 		if (args[1].equalsIgnoreCase("custom")) {
 			if (args.length < 5) {
-				player.sendMessage(color("&cUsage: /marry pronouns custom <subject> <object> <possessive>"));
-				player.sendMessage(color("&7Example: &f/marry pronouns custom xe xem xyr"));
+				plugin.langManager().send(player, "pronouns.custom-usage");
+				plugin.langManager().send(player, "pronouns.custom-example");
 				return;
 			}
 
@@ -45,21 +47,25 @@ public class PronounManager {
 			pronouns.put(player.getUniqueId(), customPronouns);
 			plugin.dataManager().saveData();
 
-			player.sendMessage(color("&aYour pronouns are now &f" + customPronouns.display() + "&a."));
+			plugin.langManager().send(player, "pronouns.set", Map.of(
+					"%pronouns%", customPronouns.display()
+			));
 			return;
 		}
 
 		Pronouns selectedPronouns = parsePronouns(args[1]);
 
 		if (selectedPronouns == null) {
-			player.sendMessage(color("&cUnknown pronouns. Try he/him, she/her, they/them, any, or custom."));
+			plugin.langManager().send(player, "pronouns.unknown");
 			return;
 		}
 
 		pronouns.put(player.getUniqueId(), selectedPronouns);
 		plugin.dataManager().saveData();
 
-		player.sendMessage(color("&aYour pronouns are now &f" + selectedPronouns.display() + "&a."));
+		plugin.langManager().send(player, "pronouns.set", Map.of(
+				"%pronouns%", selectedPronouns.display()
+		));
 	}
 
 	public Pronouns parsePronouns(String input) {

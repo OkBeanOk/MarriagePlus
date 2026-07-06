@@ -36,6 +36,12 @@ settings:
     # Cooldown for /marry kiss, /marry hug, /marry cuddle, /marry highfive, etc.
     action-seconds: 5
 
+    # Cooldown for /marry announce.
+    announce-seconds: 60
+
+    # Cooldown for /marry compliment.
+    compliment-seconds: 30
+
     # Cooldown for /marry tp.
     tp-seconds: 30
 
@@ -48,14 +54,12 @@ settings:
     # Cooldown for /marry backpack.
     backpack-seconds: 2
 
+
   default-pronouns:
     subject: "they"
     object: "them"
     possessive: "their"
     display: "they/them"
-
-messages:
-  nsfw-disabled: "&cNSFW marriage actions are disabled on this server."
 
 titles:
   max-length: 32
@@ -80,9 +84,232 @@ nicknames:
 #%partner_object%
 #%partner_possessive%
 #%partner_nickname%
+announcements:
+  max-length: 120
+  format: "&c❤ &d%player% &7& &d%partner%&7: &f%message%"
+
+compliments:
+  # PUBLIC broadcasts to the whole server.
+  # PRIVATE sends only to the couple.
+  mode: PUBLIC
+  messages:
+    - "&d%player% thinks %partner% is amazing!"
+    - "&d%player% says %partner% makes every day better."
+    - "&d%player% thinks %partner% has the best smile."
+    - "&d%player% feels lucky to be married to %partner%."
+    - "&d%player% says %partner_subject% loves how kind %partner% is."
+    - "&d%player% thinks %partner% is the cutest."
+    - "&d%player% says %partner% is %player_possessive% favorite person."
+
+mail:
+  max-inbox-size: 25
+  max-message-length: 180
+  notify-on-join: true
+  show-read-timestamps: true
+  timestamp-format: "yyyy-MM-dd HH:mm"
+
+xp:
+  level-base-required: 100
+  level-multiplier: 1.25
+  broadcast-level-ups: true
+  level-up-broadcast: "&d❤ &f%player% &7& &f%partner% &dreached marriage level &f%level%&d!"
+  sources:
+    gifts: 15
+    chat: 2
+    homes: 25
+    actions: 5
+    anniversaries: 100
+
+achievements:
+  broadcast-unlocks: true
+  unlock-broadcast: "&d❤ &f%player% &7& &f%partner% &dunlocked achievement: &f%achievement%&d!"
+
+  # Add unlimited custom achievements here.
+  #
+  # Supported triggers:
+  # manual           - Only unlockable from code/admin tools later
+  # action           - Unlocks when using a matching /marry action
+  # gift             - Unlocks when gifting partner an item
+  # chat             - Unlocks when using couple chat
+  # home             - Unlocks when setting a couple home
+  # backpack_buddies - Unlocks when both partners allow backpack access
+  # anniversary      - Unlocks when married for at least X days
+  definitions:
+    first_kiss:
+      name: "First Kiss"
+      description: "Use /marry kiss for the first time."
+      trigger: "action"
+      action: "kiss"
+
+    first_hug:
+      name: "First Hug"
+      description: "Hug your partner for the first time."
+      trigger: "action"
+      action: "hug"
+
+    first_gift:
+      name: "First Gift"
+      description: "Send your partner your first gift."
+      trigger: "gift"
+
+    first_couple_chat:
+      name: "First Couple Chat"
+      description: "Send your first private couple chat message."
+      trigger: "chat"
+
+    home_sweet_home:
+      name: "Home Sweet Home"
+      description: "Set your first couple home."
+      trigger: "home"
+
+    backpack_buddies:
+      name: "Backpack Buddies"
+      description: "Both partners allow backpack access."
+      trigger: "backpack_buddies"
+
+    anniversary_7:
+      name: "7 Day Anniversary"
+      description: "Stay married for 7 days."
+      trigger: "anniversary"
+      days: 7
+
+    anniversary_30:
+      name: "30 Day Anniversary"
+      description: "Stay married for 30 days."
+      trigger: "anniversary"
+      days: 30
+
+    anniversary_100:
+      name: "100 Day Anniversary"
+      description: "Stay married for 100 days."
+      trigger: "anniversary"
+      days: 100
+
+    anniversary_365:
+      name: "One Year Together"
+      description: "Stay married for 365 days."
+      trigger: "anniversary"
+      days: 365
+
+  # Rewards use the same IDs as definitions above.
+  rewards:
+    first_kiss:
+      commands: []
+      items:
+        - material: "PINK_TULIP"
+          amount: 1
+          name: "&dFirst Kiss Flower"
+          lore:
+            - "&7Awarded to &f%player%"
+            - "&7for sharing a first kiss with &f%partner%&7."
+          enchants:
+            unbreaking: 1
+          hide-enchants: true
+
+    first_hug:
+      commands: []
+      items:
+        - material: "POPPY"
+          amount: 1
+          name: "&cWarm Hug Poppy"
+          lore:
+            - "&7A small memory of your"
+            - "&7first hug with &f%partner%&7."
+
+    first_gift:
+      commands:
+        - "give %player% diamond 1"
+        - "give %partner% diamond 1"
+      items:
+        - material: "CHEST"
+          amount: 1
+          name: "&6Gift Giver's Keepsake"
+          lore:
+            - "&7A keepsake for giving your"
+            - "&7partner their first gift."
+          enchants:
+            unbreaking: 1
+          hide-enchants: true
+
+    first_couple_chat:
+      commands: []
+      items: []
+
+    home_sweet_home:
+      commands: []
+      items:
+        - material: "RED_BED"
+          amount: 1
+          name: "&cHome Sweet Home"
+          lore:
+            - "&7A memory of the first"
+            - "&7home you made together."
+
+    backpack_buddies:
+      commands: []
+      items: []
+
+    anniversary_7:
+      commands: []
+      items:
+        - material: "CLOCK"
+          amount: 1
+          name: "&e7 Day Anniversary"
+          lore:
+            - "&7Seven days together."
+            - "&d❤ &f%player% &7and &f%partner%"
+
+    anniversary_30:
+      commands: []
+      items:
+        - material: "AMETHYST_SHARD"
+          amount: 1
+          name: "&d30 Day Anniversary"
+          lore:
+            - "&7Thirty days of marriage."
+            - "&7A beautiful milestone."
+
+    anniversary_100:
+      commands: []
+      items:
+        - material: "NETHER_STAR"
+          amount: 1
+          name: "&b100 Day Anniversary"
+          lore:
+            - "&7100 days together."
+            - "&7A legendary marriage."
+          enchants:
+            unbreaking: 1
+          hide-enchants: true
+          custom-model-data: 100
+
+    anniversary_365:
+      commands:
+        - "give %player% emerald 10"
+        - "give %partner% emerald 10"
+      items:
+        - material: "NETHER_STAR"
+          amount: 1
+          name: "&6One Year Together"
+          lore:
+            - "&7A legendary reward for"
+            - "&7365 days of marriage."
+            - "&d❤ &f%player% &7and &f%partner%"
+          enchants:
+            unbreaking: 1
+          hide-enchants: true
+          custom-model-data: 365
+
+chat:
+  format: "&d[Marriage Chat] &f%player%&7: %color%%message%"
+  spy-format: "&8[Marriage Spy] &f%player% &7-> &f%partner%&7: %message%"
+  default-color: "&f"
+  allow-custom-colors: true
 
 actions:
   kiss:
+    display-name: "kiss"
+    description: "Kiss your partner"
     particle: "HEART"
     sound: "entity.player.levelup"
     broadcast-messages:
@@ -93,6 +320,8 @@ actions:
       - "&d%player% kissed %partner% and made %partner_object% smile."
 
   hug:
+    display-name: "hug"
+    description: "Hug your partner"
     particle: "HAPPY_VILLAGER"
     sound: "entity.villager.yes"
     broadcast-messages:
@@ -103,6 +332,8 @@ actions:
       - "&d%partner% smiles as %player% hugs %partner_object%."
 
   cuddle:
+    display-name: "cuddle"
+    description: "Cuddle your partner"
     particle: "HEART"
     sound: "entity.cat.purr"
     broadcast-messages:
@@ -113,6 +344,8 @@ actions:
       - "&d%player% cuddled %partner% because %player_subject% loves %partner_object%."
 
   highfive:
+    display-name: "high-five"
+    description: "High-five your partner"
     particle: "CRIT"
     sound: "entity.player.attack.strong"
     broadcast-messages:
@@ -121,10 +354,81 @@ actions:
       - "&e%player% gives %partner% a happy high-five!"
       - "&e%player% and %partner% celebrate together!"
 
+  boop:
+    display-name: "boop"
+    description: "Boop your partner"
+    particle: "HAPPY_VILLAGER"
+    sound: "entity.axolotl.splash"
+    broadcast-messages:
+      - "&d%player% booped %partner%!"
+      - "&d%player% gave %partner% a tiny little boop."
+      - "&d%partner% was lovingly booped by %player%."
+
+  dance:
+    display-name: "dance"
+    description: "Dance with your partner"
+    particle: "NOTE"
+    sound: "block.note_block.pling"
+    broadcast-messages:
+      - "&d%player% and %partner% danced together!"
+      - "&d%player% asked %partner% for a dance."
+      - "&d%player% and %partner% are dancing like nobody is watching."
+
+  snuggle:
+    display-name: "snuggle"
+    description: "Snuggle your partner"
+    particle: "HEART"
+    sound: "entity.cat.purr"
+    broadcast-messages:
+      - "&d%player% snuggled up with %partner%."
+      - "&d%player% and %partner% are having a cozy snuggle."
+      - "&d%partner% smiles as %player% snuggles close."
+
+  holdhands:
+    display-name: "hold hands"
+    description: "Hold hands with your partner"
+    particle: "HEART"
+    sound: "entity.allay.ambient_with_item"
+    broadcast-messages:
+      - "&d%player% held hands with %partner%."
+      - "&d%player% and %partner% walked together hand in hand."
+      - "&d%player% gently held %partner%'s hand."
+
+  foreheadkiss:
+    display-name: "forehead kiss"
+    description: "Give your partner a forehead kiss"
+    particle: "HEART"
+    sound: "entity.cat.purr"
+    broadcast-messages:
+      - "&d%player% gave %partner% a gentle forehead kiss."
+      - "&d%partner% blushed after %player%'s forehead kiss."
+      - "&d%player% kissed %partner% on the forehead."
+
+  stargaze:
+    display-name: "stargaze"
+    description: "Stargaze with your partner"
+    particle: "END_ROD"
+    sound: "block.amethyst_block.chime"
+    broadcast-messages:
+      - "&b%player% and %partner% looked up at the stars together."
+      - "&b%player% spent a quiet stargazing moment with %partner%."
+      - "&b%player% and %partner% found shapes in the stars."
+
+  cheer:
+    display-name: "cheer"
+    description: "Cheer for your partner"
+    particle: "FIREWORK"
+    sound: "entity.firework_rocket.launch"
+    broadcast-messages:
+      - "&e%player% cheered for %partner%!"
+      - "&e%player% is %partner%'s biggest fan!"
+      - "&e%player% hyped %partner% up!"
+
   fuck:
     nsfw: true
     particle: "HEART"
     sound: "entity.player.levelup"
+    permission: "marriageplus.action.nsfw" #you can set up per-action permission requirements remove if you want to disable
     broadcast-messages:
       - "&d%player% and %partner% shared an adult private moment."
       - "&d%player% and %partner% had an adult interaction."

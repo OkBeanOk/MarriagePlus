@@ -43,14 +43,14 @@ public class MarriageManager {
 		UUID partnerId = partners.get(player.getUniqueId());
 
 		if (partnerId == null) {
-			player.sendMessage(color("&cYou are not married."));
+			plugin.langManager().send(player, "marriage.not-married");
 			return null;
 		}
 
 		Player partner = Bukkit.getPlayer(partnerId);
 
 		if (partner == null) {
-			player.sendMessage(color("&cYour partner is not online."));
+			plugin.langManager().send(player, "marriage.partner-offline");
 			return null;
 		}
 
@@ -59,13 +59,13 @@ public class MarriageManager {
 
 	public void marryPlayers(Player first, Player second) {
 		if (first.getUniqueId().equals(second.getUniqueId())) {
-			first.sendMessage(color("&cYou cannot marry yourself."));
+			plugin.langManager().send(first, "marriage.cannot-marry-yourself");
 			return;
 		}
 
 		if (isMarried(first.getUniqueId()) || isMarried(second.getUniqueId())) {
-			first.sendMessage(color("&cOne of you is already married."));
-			second.sendMessage(color("&cOne of you is already married."));
+			plugin.langManager().send(first, "marriage.one-already-married");
+			plugin.langManager().send(second, "marriage.one-already-married");
 			return;
 		}
 
@@ -78,7 +78,10 @@ public class MarriageManager {
 
 		plugin.dataManager().saveData();
 
-		Bukkit.broadcastMessage(color("&d❤ &f" + first.getName() + " &dand &f" + second.getName() + " &dare now married! ❤"));
+		Bukkit.broadcastMessage(plugin.langManager().get("marriage.married", Map.of(
+				"%player%", first.getName(),
+				"%partner%", second.getName()
+		)));
 	}
 
 	public void divorceCouple(UUID first, UUID second) {
@@ -99,7 +102,7 @@ public class MarriageManager {
 		UUID partnerId = partners.get(player.getUniqueId());
 
 		if (partnerId == null) {
-			player.sendMessage(color("&cYou are not married."));
+			plugin.langManager().send(player, "marriage.not-married");
 			return;
 		}
 
@@ -107,17 +110,17 @@ public class MarriageManager {
 
 		if (enabled) {
 			pvpEnabledCouples.add(key);
-			player.sendMessage(color("&aPvP with your partner is now enabled."));
+			plugin.langManager().send(player, "pvp.enabled");
 		} else {
 			pvpEnabledCouples.remove(key);
-			player.sendMessage(color("&ePvP with your partner is now disabled."));
+			plugin.langManager().send(player, "pvp.disabled");
 		}
 
 		plugin.dataManager().saveData();
 	}
 
 	public void listMarriages(org.bukkit.command.CommandSender sender) {
-		sender.sendMessage(color("&dMarried Players:"));
+		plugin.langManager().send(sender, "marriage-list.header");
 
 		Set<String> shown = new HashSet<>();
 
@@ -128,13 +131,20 @@ public class MarriageManager {
 				OfflinePlayer first = Bukkit.getOfflinePlayer(entry.getKey());
 				OfflinePlayer second = Bukkit.getOfflinePlayer(entry.getValue());
 
-				sender.sendMessage(color("&f- &d" + first.getName() + " &7❤ &d" + second.getName()));
+				plugin.langManager().send(sender, "marriage-list.line", Map.of(
+						"%player%", safeName(first),
+						"%partner%", safeName(second)
+				));
 			}
 		}
 
 		if (shown.isEmpty()) {
-			sender.sendMessage(color("&7No players are married yet."));
+			plugin.langManager().send(sender, "marriage-list.empty");
 		}
+	}
+
+	private String safeName(OfflinePlayer player) {
+		return player.getName() == null ? plugin.langManager().get("general.unknown") : player.getName();
 	}
 
 	public String coupleKey(UUID first, UUID second) {

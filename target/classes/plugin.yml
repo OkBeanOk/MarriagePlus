@@ -1,5 +1,5 @@
 name: MarriagePlus
-version: '1.2.2'
+version: '1.3'
 softdepend:
   - PlaceholderAPI
 main: com.okbeanok.marriagePlus.MarriagePlus
@@ -89,4 +89,20 @@ permissions:
 
   marriageplus.command.block:
     description: Allows blocking marriage requests from players
+    default: true
+
+  marriageplus.command.announce:
+    description: Allows sending couple announcements
+    default: true
+
+  marriageplus.command.compliment:
+    description: Allows sending random couple compliments
+    default: true
+
+  marriageplus.command.mail:
+    description: Allows partner mail commands
+    default: true
+    
+  marriageplus.command.level:
+    description: Allows viewing marriage XP and levels
     default: true

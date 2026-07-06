@@ -38,20 +38,22 @@ public class SocialManager {
 		UUID partnerId = marriageManager.getPartnerId(player.getUniqueId());
 
 		if (partnerId == null) {
-			player.sendMessage(color("&cYou are not married."));
+			plugin.langManager().send(player, "marriage.not-married");
 			return;
 		}
 
 		if (args.length < 2) {
-			player.sendMessage(color("&dYour marriage title is &f" + getMarriageTitle(player.getUniqueId(), partnerId) + "&d."));
-			player.sendMessage(color("&7Use &f/marry title <text>&7, &f/marry title on&7, or &f/marry title off&7."));
+			plugin.langManager().send(player, "title.current", Map.of(
+					"%title%", getMarriageTitle(player.getUniqueId(), partnerId)
+			));
+			plugin.langManager().send(player, "title.usage");
 			return;
 		}
 
 		if (args[1].equalsIgnoreCase("off")) {
 			marriageTitles.remove(player.getUniqueId());
 			plugin.dataManager().saveData();
-			player.sendMessage(color("&eYour marriage title was disabled."));
+			plugin.langManager().send(player, "title.disabled");
 			return;
 		}
 
@@ -66,34 +68,40 @@ public class SocialManager {
 		int maxLength = plugin.getConfig().getInt("titles.max-length", 32);
 
 		if (ChatColor.stripColor(color(title)).length() > maxLength) {
-			player.sendMessage(color("&cThat title is too long. Max length: &f" + maxLength));
+			plugin.langManager().send(player, "title.too-long", Map.of(
+					"%max%", String.valueOf(maxLength)
+			));
 			return;
 		}
 
 		marriageTitles.put(player.getUniqueId(), title);
 		plugin.dataManager().saveData();
 
-		player.sendMessage(color("&aYour marriage title is now &f" + getMarriageTitle(player.getUniqueId(), partnerId) + "&a."));
+		plugin.langManager().send(player, "title.set", Map.of(
+				"%title%", getMarriageTitle(player.getUniqueId(), partnerId)
+		));
 	}
 
 	public void nicknameCommand(Player player, String[] args) {
 		UUID partnerId = marriageManager.getPartnerId(player.getUniqueId());
 
 		if (partnerId == null) {
-			player.sendMessage(color("&cYou are not married."));
+			plugin.langManager().send(player, "marriage.not-married");
 			return;
 		}
 
 		if (args.length < 2) {
-			player.sendMessage(color("&dYour partner nickname is &f" + getPartnerDisplayName(player.getUniqueId(), partnerId) + "&d."));
-			player.sendMessage(color("&7Use &f/marry nickname <name> &7or &f/marry nickname clear&7."));
+			plugin.langManager().send(player, "nickname.current", Map.of(
+					"%nickname%", getPartnerDisplayName(player.getUniqueId(), partnerId)
+			));
+			plugin.langManager().send(player, "nickname.usage");
 			return;
 		}
 
 		if (args[1].equalsIgnoreCase("clear")) {
 			partnerNicknames.remove(player.getUniqueId());
 			plugin.dataManager().saveData();
-			player.sendMessage(color("&eYour partner nickname was cleared."));
+			plugin.langManager().send(player, "nickname.cleared");
 			return;
 		}
 
@@ -101,25 +109,29 @@ public class SocialManager {
 		int maxLength = plugin.getConfig().getInt("nicknames.max-length", 24);
 
 		if (ChatColor.stripColor(color(nickname)).length() > maxLength) {
-			player.sendMessage(color("&cThat nickname is too long. Max length: &f" + maxLength));
+			plugin.langManager().send(player, "nickname.too-long", Map.of(
+					"%max%", String.valueOf(maxLength)
+			));
 			return;
 		}
 
 		partnerNicknames.put(player.getUniqueId(), nickname);
 		plugin.dataManager().saveData();
 
-		player.sendMessage(color("&aYour partner nickname is now &f" + color(nickname) + "&a."));
+		plugin.langManager().send(player, "nickname.set", Map.of(
+				"%nickname%", color(nickname)
+		));
 	}
-
+	
 	public String getMarriageTitle(UUID playerId, UUID partnerId) {
 		String title = marriageTitles.get(playerId);
 
 		if (title == null || title.isBlank()) {
-			return "None";
+			return plugin.langManager().get("title.none");
 		}
 
 		OfflinePlayer partner = Bukkit.getOfflinePlayer(partnerId);
-		String partnerName = partner.getName() == null ? "Partner" : partner.getName();
+		String partnerName = partner.getName() == null ? plugin.langManager().get("general.partner") : partner.getName();
 
 		return color(title
 				.replace("%partner%", partnerName)
@@ -134,6 +146,6 @@ public class SocialManager {
 		}
 
 		OfflinePlayer partner = Bukkit.getOfflinePlayer(partnerId);
-		return partner.getName() == null ? "Partner" : partner.getName();
+		return partner.getName() == null ? plugin.langManager().get("general.partner") : partner.getName();
 	}
 }

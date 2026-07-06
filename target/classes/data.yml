@@ -11,3 +11,8 @@ marriage-titles: {}
 partner-nicknames: {}
 marriage-requests-disabled: []
 blocked-marriage-requests: []
+chat-colors: {}
+chat-prefix-disabled: []
+partner-mail: {}
+marriage-xp: {}
+couple-achievements: {}

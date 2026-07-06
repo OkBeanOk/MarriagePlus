@@ -60,6 +60,11 @@ public class MarriagePlusExpansion extends PlaceholderExpansion {
 			case "partner_nickname" -> partnerId == null ? "" : plugin.socialManager().getPartnerDisplayName(playerId, partnerId);
 			case "days_married" -> String.valueOf(daysMarried(playerId));
 			case "anniversary_days" -> String.valueOf(daysMarried(playerId));
+			case "level" -> String.valueOf(plugin.marriageXpManager().getLevel(playerId));
+			case "xp" -> String.valueOf(plugin.marriageXpManager().getXp(playerId));
+			case "xp_required" -> String.valueOf(plugin.marriageXpManager().getXpRequired(playerId));
+			case "achievements_unlocked" -> String.valueOf(achievementsUnlocked(playerId));
+			case "achievements_total" -> String.valueOf(plugin.achievementManager().definitions().size());
 			case "pronouns" -> plugin.pronounManager().getPronouns(playerId).display();
 			case "subject" -> plugin.pronounManager().getPronouns(playerId).subject();
 			case "object" -> plugin.pronounManager().getPronouns(playerId).object();
@@ -79,6 +84,17 @@ public class MarriagePlusExpansion extends PlaceholderExpansion {
 			case "max_homes" -> playerMaxHomes(offlinePlayer);
 			default -> null;
 		};
+	}
+
+	private int achievementsUnlocked(UUID playerId) {
+		UUID partnerId = plugin.marriageManager().getPartnerId(playerId);
+
+		if (partnerId == null) {
+			return 0;
+		}
+
+		String coupleKey = plugin.marriageManager().coupleKey(playerId, partnerId);
+		return plugin.achievementManager().unlockedAchievements().getOrDefault(coupleKey, new java.util.ArrayList<>()).size();
 	}
 
 	private String partnerName(UUID partnerId) {

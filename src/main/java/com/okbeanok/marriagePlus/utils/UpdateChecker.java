@@ -2,12 +2,15 @@ package com.okbeanok.marriagePlus.utils;
 
 import com.okbeanok.marriagePlus.MarriagePlus;
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URL;
 import java.util.concurrent.CompletableFuture;
+
+import static com.okbeanok.marriagePlus.utils.TextUtils.color; 
 
 public class UpdateChecker {
 
@@ -64,6 +67,25 @@ public class UpdateChecker {
 		plugin.getLogger().warning("Current version: " + currentVersion);
 		plugin.getLogger().warning("Latest version: " + latestVersion);
 		plugin.getLogger().warning("Download: " + getDownloadUrl());
+
+		notifyOnlineAdmins();
+	}
+
+	private void notifyOnlineAdmins() {
+		if (!plugin.getConfig().getBoolean("settings.update-checker.notify-admins-on-join", true)) {
+			return;
+		}
+
+		for (Player player : Bukkit.getOnlinePlayers()) {
+			if (!player.hasPermission("marriageplus.admin")) {
+				continue;
+			}
+
+			player.sendMessage(color("&dMarriagePlus &eupdate available!"));
+			player.sendMessage(color("&7Current: &f" + currentVersion));
+			player.sendMessage(color("&7Latest: &a" + latestVersion));
+			player.sendMessage(color("&7Download: &f" + getDownloadUrl()));
+		}
 	}
 
 	private boolean isNewerVersion(String latest, String current) {

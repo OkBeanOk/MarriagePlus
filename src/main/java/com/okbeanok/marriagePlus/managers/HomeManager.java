@@ -35,26 +35,30 @@ public class HomeManager {
 		UUID partnerId = marriageManager.getPartnerId(player.getUniqueId());
 
 		if (partnerId == null) {
-			player.sendMessage(color("&cYou are not married."));
+			plugin.langManager().send(player, "marriage.not-married");
 			return;
 		}
 
 		String homeName = args.length >= 2 ? normalizeHomeName(args[1]) : DEFAULT_HOME_NAME;
 
 		if (!isValidHomeName(homeName)) {
-			player.sendMessage(color("&cHome names can only use letters, numbers, underscores, and hyphens."));
+			plugin.langManager().send(player, "home.invalid-name");
 			return;
 		}
 
 		int maxNameLength = plugin.getConfig().getInt("homes.max-name-length", 16);
 
 		if (homeName.length() > maxNameLength) {
-			player.sendMessage(color("&cThat home name is too long. Max length: &f" + maxNameLength));
+			plugin.langManager().send(player, "home.name-too-long", Map.of(
+					"%max%", String.valueOf(maxNameLength)
+			));
 			return;
 		}
 
 		if (!hasHome(player.getUniqueId(), homeName) && getHomeCount(player.getUniqueId()) >= getMaxHomes(player)) {
-			player.sendMessage(color("&cYou have reached your couple home limit of &f" + getMaxHomes(player) + "&c."));
+			plugin.langManager().send(player, "home.limit-reached", Map.of(
+					"%max%", String.valueOf(getMaxHomes(player))
+			));
 			return;
 		}
 
@@ -63,7 +67,11 @@ public class HomeManager {
 
 		plugin.dataManager().saveData();
 
-		player.sendMessage(color("&aCouple home &f" + homeName + " &awas set."));
+		plugin.langManager().send(player, "home.set", Map.of(
+				"%home%", homeName
+		));
+		plugin.marriageXpManager().addXp(player, "homes");
+		plugin.achievementManager().unlockByTrigger(player, "home");
 	}
 
 	public void goHome(Player player, String[] args) {
@@ -75,55 +83,66 @@ public class HomeManager {
 		Location home = getHome(player.getUniqueId(), homeName);
 
 		if (home == null) {
-			player.sendMessage(color("&cYou do not have a couple home named &f" + homeName + "&c."));
+			plugin.langManager().send(player, "home.not-set", Map.of(
+					"%home%", homeName
+			));
 			return;
 		}
 
 		cooldownManager.setCooldown(player, "home", plugin.getConfig().getInt("settings.cooldowns.home-seconds", 30));
 
 		player.teleport(home);
-		player.sendMessage(color("&dTeleported to couple home &f" + homeName + "&d."));
+		plugin.langManager().send(player, "home.teleporting", Map.of(
+				"%home%", homeName
+		));
 	}
 
 	public void listHomes(Player player) {
 		if (!marriageManager.isMarried(player.getUniqueId())) {
-			player.sendMessage(color("&cYou are not married."));
+			plugin.langManager().send(player, "marriage.not-married");
 			return;
 		}
 
 		Map<String, Location> playerHomes = homes.get(player.getUniqueId());
 
-		player.sendMessage(color("&dCouple Homes:"));
+		plugin.langManager().send(player, "home.header");
 
 		if (playerHomes == null || playerHomes.isEmpty()) {
-			player.sendMessage(color("&7You do not have any couple homes set."));
+			plugin.langManager().send(player, "home.none");
 			return;
 		}
 
 		for (String homeName : playerHomes.keySet().stream().sorted(String.CASE_INSENSITIVE_ORDER).toList()) {
-			player.sendMessage(color("&f- &d" + homeName));
+			plugin.langManager().send(player, "home.line", Map.of(
+					"%home%", homeName
+			));
 		}
 
-		player.sendMessage(color("&7Homes: &f" + playerHomes.size() + "&7/&f" + getMaxHomes(player)));
+		plugin.langManager().send(player, "home.count", Map.of(
+				"%homes%", String.valueOf(playerHomes.size()),
+				"%max%", String.valueOf(getMaxHomes(player))
+		));
 	}
 
 	public void deleteHome(Player player, String[] args) {
 		UUID partnerId = marriageManager.getPartnerId(player.getUniqueId());
 
 		if (partnerId == null) {
-			player.sendMessage(color("&cYou are not married."));
+			plugin.langManager().send(player, "marriage.not-married");
 			return;
 		}
 
 		if (args.length < 2) {
-			player.sendMessage(color("&cUsage: /marry delhome <name>"));
+			plugin.langManager().send(player, "home.delete-usage");
 			return;
 		}
 
 		String homeName = normalizeHomeName(args[1]);
 
 		if (!hasHome(player.getUniqueId(), homeName)) {
-			player.sendMessage(color("&cYou do not have a couple home named &f" + homeName + "&c."));
+			plugin.langManager().send(player, "home.not-set", Map.of(
+					"%home%", homeName
+			));
 			return;
 		}
 
@@ -132,7 +151,9 @@ public class HomeManager {
 
 		plugin.dataManager().saveData();
 
-		player.sendMessage(color("&eDeleted couple home &f" + homeName + "&e."));
+		plugin.langManager().send(player, "home.deleted", Map.of(
+				"%home%", homeName
+		));
 	}
 
 	public void setHomeFor(UUID playerId, String homeName, Location location) {

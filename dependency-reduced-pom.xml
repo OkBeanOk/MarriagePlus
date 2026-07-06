@@ -4,7 +4,7 @@
   <groupId>com.okbeanok</groupId>
   <artifactId>MarriagePlus</artifactId>
   <name>MarriagePlus</name>
-  <version>1.2.2</version>
+  <version>1.3</version>
   <build>
     <defaultGoal>clean package</defaultGoal>
     <resources>
@@ -31,6 +31,14 @@
             <goals>
               <goal>shade</goal>
             </goals>
+            <configuration>
+              <relocations>
+                <relocation>
+                  <pattern>org.bstats</pattern>
+                  <shadedPattern>com.okbeanok.marriagePlus.libs.bstats</shadedPattern>
+                </relocation>
+              </relocations>
+            </configuration>
           </execution>
         </executions>
       </plugin>

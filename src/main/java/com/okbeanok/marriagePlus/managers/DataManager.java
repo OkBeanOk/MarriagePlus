@@ -2,6 +2,7 @@ package com.okbeanok.marriagePlus.managers;
 
 import com.okbeanok.marriagePlus.MarriagePlus;
 import com.okbeanok.marriagePlus.models.Pronouns;
+import com.okbeanok.marriagePlus.models.PartnerMail;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -15,11 +16,7 @@ import org.bukkit.inventory.ItemStack;
 import java.io.File;
 import java.io.IOException;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 public class DataManager {
 
@@ -30,6 +27,9 @@ public class DataManager {
 	private final PronounManager pronounManager;
 	private final SocialManager socialManager;
 	private final RequestManager requestManager;
+	private final MailManager mailManager;
+	private final MarriageXpManager marriageXpManager;
+	private final AchievementManager achievementManager;
 
 	private File dataFile;
 	private FileConfiguration dataConfig;
@@ -45,7 +45,10 @@ public class DataManager {
 			BackpackManager backpackManager,
 			PronounManager pronounManager,
 			SocialManager socialManager,
-			RequestManager requestManager
+			RequestManager requestManager,
+			MailManager mailManager,
+			MarriageXpManager marriageXpManager,
+			AchievementManager achievementManager
 	) {
 		this.plugin = plugin;
 		this.marriageManager = marriageManager;
@@ -54,6 +57,9 @@ public class DataManager {
 		this.pronounManager = pronounManager;
 		this.socialManager = socialManager;
 		this.requestManager = requestManager;
+		this.mailManager = mailManager;
+		this.marriageXpManager = marriageXpManager;
+		this.achievementManager = achievementManager;
 	}
 
 	public void setupDataFile() {
@@ -79,6 +85,8 @@ public class DataManager {
 					dataConfig.set("partner-nicknames", new HashMap<>());
 					dataConfig.set("marriage-requests-disabled", new ArrayList<>());
 					dataConfig.set("blocked-marriage-requests", new ArrayList<>());
+					dataConfig.set("partner-mail", new HashMap<>());
+					dataConfig.set("marriage-xp", new HashMap<>());
 
 					saveYamlDataFile();
 				}
@@ -100,6 +108,18 @@ public class DataManager {
 				mysqlEnabled = false;
 				plugin.getLogger().warning("MySQL storage failed to initialize. Falling back to YAML storage.");
 			}
+		}
+	}
+	
+	private void loadAchievements() {
+		ConfigurationSection achievementsSection = dataConfig.getConfigurationSection("couple-achievements");
+
+		if (achievementsSection == null) {
+			return;
+		}
+
+		for (String coupleKey : achievementsSection.getKeys(false)) {
+			achievementManager.unlockedAchievements().put(coupleKey, achievementsSection.getStringList(coupleKey));
 		}
 	}
 
@@ -237,6 +257,11 @@ public class DataManager {
 		dataConfig.set("partner-nicknames", null);
 		dataConfig.set("marriage-requests-disabled", null);
 		dataConfig.set("blocked-marriage-requests", null);
+		dataConfig.set("chat-colors", null);
+		dataConfig.set("chat-prefix-disabled", null);
+		dataConfig.set("partner-mail", null);
+		dataConfig.set("marriage-xp", null);
+		dataConfig.set("couple-achievements", null);
 
 		saveMarriages();
 		saveHomes();
@@ -246,10 +271,14 @@ public class DataManager {
 		saveMarriageTitles();
 		savePartnerNicknames();
 		saveRequestSettings();
+		savePartnerMail();
+		saveMarriageXp();
 		saveBackpacks();
+		saveAchievements();
 
 		saveDataFile();
 	}
+
 
 	private void saveMarriages() {
 		Map<String, Boolean> savedCouples = new HashMap<>();
@@ -312,6 +341,34 @@ public class DataManager {
 				.toList());
 
 		dataConfig.set("blocked-marriage-requests", requestManager.blockedMarriageRequests().stream().toList());
+
+		for (Map.Entry<UUID, String> entry : requestManager.chatColors().entrySet()) {
+			dataConfig.set("chat-colors." + entry.getKey(), entry.getValue());
+		}
+
+		dataConfig.set("chat-prefix-disabled", requestManager.chatPrefixDisabled().stream()
+				.map(UUID::toString)
+				.toList());
+	}
+
+	private void savePartnerMail() {
+		for (Map.Entry<UUID, java.util.List<PartnerMail>> inboxEntry : mailManager.inboxes().entrySet()) {
+			for (int index = 0; index < inboxEntry.getValue().size(); index++) {
+				PartnerMail mail = inboxEntry.getValue().get(index);
+				String path = "partner-mail." + inboxEntry.getKey() + "." + index;
+
+				dataConfig.set(path + ".sender-id", mail.senderId().toString());
+				dataConfig.set(path + ".sender-name", mail.senderName());
+				dataConfig.set(path + ".message", mail.message());
+				dataConfig.set(path + ".sent-at", mail.sentAt());
+			}
+		}
+	}
+
+	private void saveMarriageXp() {
+		for (Map.Entry<String, Integer> entry : marriageXpManager.coupleXp().entrySet()) {
+			dataConfig.set("marriage-xp." + entry.getKey(), entry.getValue());
+		}
 	}
 
 	private void saveBackpacks() {
@@ -330,6 +387,10 @@ public class DataManager {
 		socialManager.partnerNicknames().clear();
 		requestManager.marriageRequestsDisabled().clear();
 		requestManager.blockedMarriageRequests().clear();
+		requestManager.chatColors().clear();
+		requestManager.chatPrefixDisabled().clear();
+		mailManager.inboxes().clear();
+		marriageXpManager.coupleXp().clear();
 		backpackManager.backpacks().clear();
 
 		loadMarriages();
@@ -340,6 +401,8 @@ public class DataManager {
 		loadMarriageTitles();
 		loadPartnerNicknames();
 		loadRequestSettings();
+		loadPartnerMail();
+		loadMarriageXp();
 		loadBackpacks();
 	}
 
@@ -481,6 +544,82 @@ public class DataManager {
 		}
 
 		requestManager.blockedMarriageRequests().addAll(dataConfig.getStringList("blocked-marriage-requests"));
+
+		ConfigurationSection chatColorsSection = dataConfig.getConfigurationSection("chat-colors");
+
+		if (chatColorsSection != null) {
+			for (String key : chatColorsSection.getKeys(false)) {
+				try {
+					requestManager.chatColors().put(UUID.fromString(key), chatColorsSection.getString(key, "&f"));
+				} catch (IllegalArgumentException exception) {
+					plugin.getLogger().warning("Invalid chat color UUID in data.yml: " + key);
+				}
+			}
+		}
+
+		for (String uuid : dataConfig.getStringList("chat-prefix-disabled")) {
+			try {
+				requestManager.chatPrefixDisabled().add(UUID.fromString(uuid));
+			} catch (IllegalArgumentException exception) {
+				plugin.getLogger().warning("Invalid chat-prefix-disabled UUID in data.yml: " + uuid);
+			}
+		}
+	}
+
+	private void loadPartnerMail() {
+		ConfigurationSection mailSection = dataConfig.getConfigurationSection("partner-mail");
+
+		if (mailSection == null) {
+			return;
+		}
+
+		for (String receiverKey : mailSection.getKeys(false)) {
+			try {
+				UUID receiverId = UUID.fromString(receiverKey);
+				ConfigurationSection inboxSection = dataConfig.getConfigurationSection("partner-mail." + receiverKey);
+
+				if (inboxSection == null) {
+					continue;
+				}
+
+				List<PartnerMail> inbox = new ArrayList<>();
+
+				for (String mailKey : inboxSection.getKeys(false)) {
+					String path = "partner-mail." + receiverKey + "." + mailKey;
+
+					try {
+						UUID senderId = UUID.fromString(dataConfig.getString(path + ".sender-id", ""));
+						String senderName = dataConfig.getString(path + ".sender-name", "Unknown");
+						String message = dataConfig.getString(path + ".message", "");
+						long sentAt = dataConfig.getLong(path + ".sent-at", System.currentTimeMillis());
+
+						if (!message.isBlank()) {
+							inbox.add(new PartnerMail(senderId, senderName, message, sentAt));
+						}
+					} catch (IllegalArgumentException exception) {
+						plugin.getLogger().warning("Invalid partner mail entry in data.yml: " + path);
+					}
+				}
+
+				if (!inbox.isEmpty()) {
+					mailManager.inboxes().put(receiverId, inbox);
+				}
+			} catch (IllegalArgumentException exception) {
+				plugin.getLogger().warning("Invalid partner mail receiver UUID in data.yml: " + receiverKey);
+			}
+		}
+	}
+
+	private void loadMarriageXp() {
+		ConfigurationSection xpSection = dataConfig.getConfigurationSection("marriage-xp");
+
+		if (xpSection == null) {
+			return;
+		}
+
+		for (String coupleKey : xpSection.getKeys(false)) {
+			marriageXpManager.coupleXp().put(coupleKey, xpSection.getInt(coupleKey, 0));
+		}
 	}
 
 	private void loadBackpacks() {
@@ -539,6 +678,12 @@ public class DataManager {
 	public void saveBackpack(UUID owner, Inventory inventory) {
 		dataConfig.set("backpacks." + owner + ".contents", Arrays.asList(inventory.getContents()));
 		saveDataFile();
+	}
+
+	private void saveAchievements() {
+		for (Map.Entry<String, List<String>> entry : achievementManager.unlockedAchievements().entrySet()) {
+			dataConfig.set("couple-achievements." + entry.getKey(), entry.getValue());
+		}
 	}
 
 	public Inventory loadBackpack(UUID owner) {

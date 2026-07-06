@@ -2,6 +2,7 @@ package com.okbeanok.marriagePlus.listeners;
 
 import com.okbeanok.marriagePlus.MarriagePlus;
 import com.okbeanok.marriagePlus.managers.MarriageManager;
+import com.okbeanok.marriagePlus.managers.MailManager;
 import com.okbeanok.marriagePlus.managers.SocialManager;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -19,20 +20,31 @@ public class PlayerConnectionListener implements Listener {
 	private final MarriagePlus plugin;
 	private final MarriageManager marriageManager;
 	private final SocialManager socialManager;
+	private final MailManager mailManager;
 
-	public PlayerConnectionListener(MarriagePlus plugin, MarriageManager marriageManager, SocialManager socialManager) {
+	public PlayerConnectionListener(
+			MarriagePlus plugin,
+			MarriageManager marriageManager,
+			SocialManager socialManager,
+			MailManager mailManager
+	) {
 		this.plugin = plugin;
 		this.marriageManager = marriageManager;
 		this.socialManager = socialManager;
+		this.mailManager = mailManager;
 	}
 
 	@EventHandler
 	public void onPlayerJoin(PlayerJoinEvent event) {
+		Player player = event.getPlayer();
+
+		mailManager.notifyUnreadMail(player);
+		plugin.achievementManager().checkAnniversaryAchievements(player);
+
 		if (!plugin.getConfig().getBoolean("settings.partner-join-notifications", true)) {
 			return;
 		}
 
-		Player player = event.getPlayer();
 		UUID partnerId = marriageManager.getPartnerId(player.getUniqueId());
 
 		if (partnerId == null) {

@@ -3,16 +3,11 @@ package com.okbeanok.marriagePlus;
 import com.okbeanok.marriagePlus.commands.MarryCommand;
 import com.okbeanok.marriagePlus.hooks.MarriagePlusExpansion;
 import com.okbeanok.marriagePlus.listeners.*;
-import com.okbeanok.marriagePlus.managers.BackpackManager;
-import com.okbeanok.marriagePlus.managers.CooldownManager;
-import com.okbeanok.marriagePlus.managers.DataManager;
-import com.okbeanok.marriagePlus.managers.HomeManager;
-import com.okbeanok.marriagePlus.managers.MarriageManager;
-import com.okbeanok.marriagePlus.managers.PronounManager;
-import com.okbeanok.marriagePlus.managers.RequestManager;
-import com.okbeanok.marriagePlus.managers.SocialManager;
+import com.okbeanok.marriagePlus.managers.*;
+import com.okbeanok.marriagePlus.utils.Metrics;
 import com.okbeanok.marriagePlus.utils.UpdateChecker;
 import org.bukkit.Bukkit;
+import org.bukkit.Server;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -27,10 +22,18 @@ public final class MarriagePlus extends JavaPlugin {
 	private SocialManager socialManager;
 	private CooldownManager cooldownManager;
 	private UpdateChecker updateChecker;
+	private MailManager mailManager;
+	private AchievementManager achievementManager;
+	private MarriageXpManager marriageXpManager;
+	private LangManager langManager;
+
 
 	@Override
 	public void onEnable() {
 		saveDefaultConfig();
+
+		langManager = new LangManager(this);
+		langManager.setupLangFile();
 
 		cooldownManager = new CooldownManager(this);
 		marriageManager = new MarriageManager(this);
@@ -39,6 +42,9 @@ public final class MarriagePlus extends JavaPlugin {
 		backpackManager = new BackpackManager(this, marriageManager, cooldownManager);
 		pronounManager = new PronounManager(this);
 		socialManager = new SocialManager(this, marriageManager);
+		mailManager = new MailManager(this, marriageManager);
+		marriageXpManager = new MarriageXpManager(this, marriageManager);
+		achievementManager = new AchievementManager(this, marriageManager);
 		updateChecker = new UpdateChecker(this);
 
 		dataManager = new DataManager(
@@ -48,7 +54,10 @@ public final class MarriagePlus extends JavaPlugin {
 				backpackManager,
 				pronounManager,
 				socialManager,
-				requestManager
+				requestManager,
+				mailManager,
+				marriageXpManager,
+				achievementManager
 		);
 
 		dataManager.setupDataFile();
@@ -59,6 +68,13 @@ public final class MarriagePlus extends JavaPlugin {
 		registerPlaceholderApi();
 
 		updateChecker.checkForUpdates();
+
+		int pluginId = 32416;
+		Metrics metrics = new Metrics(this, pluginId);
+		Server server = Bukkit.getServer();
+		metrics.addCustomChart(
+				new Metrics.SimplePie("Server Version", server::getVersion)
+		);
 
 		getLogger().info("MarriagePlus enabled!");
 	}
@@ -97,7 +113,10 @@ public final class MarriagePlus extends JavaPlugin {
 				pronounManager,
 				socialManager,
 				cooldownManager,
-				dataManager
+				dataManager,
+				mailManager,
+				marriageXpManager,
+				achievementManager
 		);
 
 		marryCommand.setExecutor(executor);
@@ -108,7 +127,7 @@ public final class MarriagePlus extends JavaPlugin {
 		Bukkit.getPluginManager().registerEvents(new ChatListener(this), this);
 		Bukkit.getPluginManager().registerEvents(new InventoryListener(backpackManager), this);
 		Bukkit.getPluginManager().registerEvents(new PartnerPvpListener(marriageManager), this);
-		Bukkit.getPluginManager().registerEvents(new PlayerConnectionListener(this, marriageManager, socialManager), this);
+		Bukkit.getPluginManager().registerEvents(new PlayerConnectionListener(this, marriageManager, socialManager, mailManager), this);
 		Bukkit.getPluginManager().registerEvents(new UpdateNotificationListener(this, updateChecker), this);
 	}
 
@@ -127,6 +146,22 @@ public final class MarriagePlus extends JavaPlugin {
 	public HomeManager homeManager() {
 		return homeManager;
 	}
+
+	public MailManager mailManager() {
+		return mailManager;
+	}
+
+	public LangManager langManager() {
+		return langManager;
+	}
+
+	public AchievementManager achievementManager() {
+		return achievementManager;
+	}
+	public MarriageXpManager marriageXpManager() {
+		return marriageXpManager;
+	}
+
 
 	public BackpackManager backpackManager() {
 		return backpackManager;

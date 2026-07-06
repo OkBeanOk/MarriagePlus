@@ -43,14 +43,15 @@ public class BackpackManager {
 			if (args[1].equalsIgnoreCase("on")) {
 				backpackAllowed.add(player.getUniqueId());
 				plugin.dataManager().saveData();
-				player.sendMessage(color("&aYour partner can now use your backpack."));
+				plugin.langManager().send(player, "backpack.enabled");
+				plugin.achievementManager().checkBackpackBuddies(player);
 				return;
 			}
 
 			if (args[1].equalsIgnoreCase("off")) {
 				backpackAllowed.remove(player.getUniqueId());
 				plugin.dataManager().saveData();
-				player.sendMessage(color("&eYour partner can no longer use your backpack."));
+				plugin.langManager().send(player, "backpack.disabled");
 				return;
 			}
 		}
@@ -66,26 +67,30 @@ public class BackpackManager {
 		}
 
 		if (!backpackAllowed.contains(partner.getUniqueId())) {
-			player.sendMessage(color("&cYour partner has not allowed you to use their backpack."));
+			plugin.langManager().send(player, "backpack.not-allowed");
 			return;
 		}
 
 		Inventory backpack = backpacks.computeIfAbsent(partner.getUniqueId(), this::loadBackpack);
 
 		cooldownManager.setCooldown(player, "backpack", plugin.getConfig().getInt("settings.cooldowns.backpack-seconds", 2));
+		plugin.langManager().send(player, "backpack.opened");
 		player.openInventory(backpack);
 	}
 
 	public Inventory loadBackpack(UUID owner) {
 		OfflinePlayer offlineOwner = Bukkit.getOfflinePlayer(owner);
-		String ownerName = offlineOwner.getName() == null ? "Player" : offlineOwner.getName();
+		String ownerName = offlineOwner.getName() == null ? plugin.langManager().get("general.player") : offlineOwner.getName();
 
-		Inventory inventory = Bukkit.createInventory(null, 27, color("&d" + ownerName + "'s Marriage Backpack"));
+		Inventory inventory = Bukkit.createInventory(null, 27, plugin.langManager().get("backpack.title", Map.of(
+				"%player%", ownerName
+		)));
 		ItemStack[] items = plugin.dataManager().loadBackpackContents(owner);
 
 		inventory.setContents(items);
 		return inventory;
 	}
+
 
 	public void saveBackpack(UUID owner, Inventory inventory) {
 		plugin.dataManager().saveBackpack(owner, inventory);
