@@ -1,0 +1,28 @@
+# MarriagePlus Partner Buffs Configuration
+
+enabled: true
+radius: 16.0
+interval-seconds: 10
+
+disabled-worlds:
+  - "pvp"
+  - "arena"
+
+effects:
+  regeneration:
+    enabled: true
+    amplifier: 0
+    duration-seconds: 12
+    required-marriage-level: 5
+
+  haste:
+    enabled: true
+    amplifier: 0
+    duration-seconds: 12
+    required-marriage-level: 10
+
+  luck:
+    enabled: true
+    amplifier: 0
+    duration-seconds: 12
+    required-marriage-level: 15

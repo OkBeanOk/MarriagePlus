@@ -1,18 +1,21 @@
 package com.okbeanok.marriagePlus.commands;
 
 import com.okbeanok.marriagePlus.MarriagePlus;
-import com.okbeanok.marriagePlus.managers.AchievementManager;
-import com.okbeanok.marriagePlus.managers.BackpackManager;
-import com.okbeanok.marriagePlus.managers.CooldownManager;
-import com.okbeanok.marriagePlus.managers.DataManager;
-import com.okbeanok.marriagePlus.managers.HomeManager;
-import com.okbeanok.marriagePlus.managers.MailManager;
-import com.okbeanok.marriagePlus.managers.MarriageManager;
-import com.okbeanok.marriagePlus.managers.MarriageXpManager;
-import com.okbeanok.marriagePlus.managers.PronounManager;
-import com.okbeanok.marriagePlus.managers.RequestManager;
-import com.okbeanok.marriagePlus.managers.SocialManager;
 import com.okbeanok.marriagePlus.models.HelpEntry;
+import com.okbeanok.marriagePlus.services.CooldownManager;
+import com.okbeanok.marriagePlus.services.MarriageManager;
+import com.okbeanok.marriagePlus.services.achievement.AchievementManager;
+import com.okbeanok.marriagePlus.services.backpacks.BackpackManager;
+import com.okbeanok.marriagePlus.services.families.FamilyMarriageCheckResult;
+import com.okbeanok.marriagePlus.services.homes.HomeManager;
+import com.okbeanok.marriagePlus.services.mail.MailManager;
+import com.okbeanok.marriagePlus.services.profiles.ProfileManager;
+import com.okbeanok.marriagePlus.services.pronouns.PronounManager;
+import com.okbeanok.marriagePlus.services.quests.QuestManager;
+import com.okbeanok.marriagePlus.services.request.RequestManager;
+import com.okbeanok.marriagePlus.services.social.SocialManager;
+import com.okbeanok.marriagePlus.services.xp.MarriageXpManager;
+import com.okbeanok.marriagePlus.utils.DataManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
@@ -33,6 +36,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -44,6 +48,17 @@ import static com.okbeanok.marriagePlus.utils.TextUtils.color;
 import static com.okbeanok.marriagePlus.utils.TextUtils.legacy;
 
 public class MarryCommand implements TabExecutor {
+
+	private static final int HELP_ENTRIES_PER_PAGE = 8;
+
+	private static final Set<String> RESERVED_COMMANDS = Set.of(
+			"help", "menu", "gui", "me", "accept", "deny", "decline", "divorce", "list", "partner", "profile", "status",
+			"quests", "tp", "sethome", "home", "homes", "delhome", "chat", "listenchat", "pvpon", "pvpoff",
+			"announce", "compliment", "mail", "note", "lovenote", "lovenotes", "ring", "ceremony", "family",
+			"leaderboard", "leaderboards", "top", "level", "xp", "achievements", "gift", "backpack",
+			"anniversary", "pronouns", "title", "nickname", "requests", "block", "unblock", "blocklist",
+			"priest", "reload"
+	);
 
 	private final MarriagePlus plugin;
 	private final MarriageManager marriageManager;
@@ -57,8 +72,10 @@ public class MarryCommand implements TabExecutor {
 	private final MailManager mailManager;
 	private final MarriageXpManager marriageXpManager;
 	private final AchievementManager achievementManager;
+	private final ProfileManager profileManager;
+	private final QuestManager questManager;
 
-	private final HashMap<UUID, Long> divorceConfirmations = new HashMap<>();
+	private final Map<UUID, Long> divorceConfirmations = new HashMap<>();
 
 	public MarryCommand(
 			MarriagePlus plugin,
@@ -86,6 +103,8 @@ public class MarryCommand implements TabExecutor {
 		this.mailManager = mailManager;
 		this.marriageXpManager = marriageXpManager;
 		this.achievementManager = achievementManager;
+		this.profileManager = plugin.profileManager();
+		this.questManager = plugin.questManager();
 	}
 
 	@Override
@@ -108,53 +127,61 @@ public class MarryCommand implements TabExecutor {
 
 		switch (subCommand) {
 			case "help" -> sendHelp(sender, args);
-			case "me" -> runWithPermission(sender, "marriageplus.command.me", player -> requestManager.sendMarriageRequest(player, args));
+			case "me" -> playerCommand(sender, "marriageplus.command.me", player -> requestManager.sendMarriageRequest(player, args));
 			case "accept" -> requirePlayer(sender, requestManager::acceptProposal);
 			case "deny", "decline" -> requirePlayer(sender, requestManager::denyProposal);
 			case "divorce" -> handleDivorce(sender, args);
-			case "list" -> {
-				if (hasPermission(sender, "marriageplus.command.list")) {
-					marriageManager.listMarriages(sender);
-				}
-			}
-			case "partner" -> runWithPermission(sender, "marriageplus.command.partner", this::showPartner);
-			case "status" -> runWithPermission(sender, "marriageplus.command.status", this::showStatus);
-			case "tp" -> runWithPermission(sender, "marriageplus.command.tp", this::teleportToPartner);
-			case "sethome" -> runWithPermission(sender, "marriageplus.command.home", player -> homeManager.setHome(player, args));
-			case "home" -> runWithPermission(sender, "marriageplus.command.home", player -> homeManager.goHome(player, args));
-			case "chat" -> runWithPermission(sender, "marriageplus.command.chat", player -> requestManager.marriageChat(player, args));
+			case "list" -> command(sender, "marriageplus.command.list", () -> marriageManager.listMarriages(sender));
+			case "partner" -> playerCommand(sender, "marriageplus.command.partner", this::showPartner);
+			case "status" -> playerCommand(sender, "marriageplus.command.status", player -> handleStatus(player, args));
+			case "quests" -> playerCommand(sender, "marriageplus.command.quests", player -> questManager.questsCommand(player, args));
+			case "tp" -> playerCommand(sender, "marriageplus.command.tp", this::teleportToPartner);
+			case "ceremony" -> playerCommand(sender, "marriageplus.command.ceremony", player -> plugin.ceremonyManager().ceremonyCommand(player, args));
+			case "sethome" -> playerCommand(sender, "marriageplus.command.home", player -> homeManager.setHome(player, args));
+			case "home" -> playerCommand(sender, "marriageplus.command.home", player -> homeManager.goHome(player, args));
+			case "homes" -> playerCommand(sender, "marriageplus.command.home", player -> plugin.marriageGuiManager().openHomesMenu(player));
+			case "chat" -> playerCommand(sender, "marriageplus.command.chat", player -> requestManager.marriageChat(player, args));
 			case "listenchat" -> requirePlayer(sender, requestManager::toggleListenChat);
-			case "pvpon" -> runWithPermission(sender, "marriageplus.command.pvp", player -> marriageManager.setPartnerPvp(player, true));
-			case "pvpoff" -> runWithPermission(sender, "marriageplus.command.pvp", player -> marriageManager.setPartnerPvp(player, false));
-			case "announce" -> runWithPermission(sender, "marriageplus.command.announce", player -> announce(player, args));
-			case "compliment" -> runWithPermission(sender, "marriageplus.command.compliment", this::compliment);
-			case "mail" -> runWithPermission(sender, "marriageplus.command.mail", player -> mailManager.mailCommand(player, args));
-			case "level" -> runWithPermission(sender, "marriageplus.command.level", marriageXpManager::levelCommand);
-			case "xp" -> runWithPermission(sender, "marriageplus.command.level", marriageXpManager::xpCommand);
-			case "achievements" -> runWithPermission(sender, "marriageplus.command.achievements", player -> achievementManager.achievementsCommand(player, args));
-			case "gift" -> runWithPermission(sender, "marriageplus.command.gift", this::giftItem);
-			case "backpack" -> runWithPermission(sender, "marriageplus.command.backpack", player -> backpackManager.backpackCommand(player, args));
-			case "anniversary" -> runWithPermission(sender, "marriageplus.command.anniversary", this::showAnniversary);
-			case "pronouns" -> runWithPermission(sender, "marriageplus.command.pronouns", player -> pronounManager.pronounsCommand(player, args));
-			case "title" -> runWithPermission(sender, "marriageplus.command.title", player -> socialManager.titleCommand(player, args));
-			case "nickname" -> runWithPermission(sender, "marriageplus.command.nickname", player -> socialManager.nicknameCommand(player, args));
-			case "requests" -> runWithPermission(sender, "marriageplus.command.requests", player -> requestManager.requestsCommand(player, args));
-			case "block" -> runWithPermission(sender, "marriageplus.command.block", player -> requestManager.blockCommand(player, args));
-			case "unblock" -> runWithPermission(sender, "marriageplus.command.block", player -> requestManager.unblockCommand(player, args));
-			case "blocklist" -> runWithPermission(sender, "marriageplus.command.block", requestManager::showBlocklist);
+			case "profile" -> playerCommand(sender, "marriageplus.command.profile", player -> profileManager.profileCommand(player, args));
+			case "pvpon" -> playerCommand(sender, "marriageplus.command.pvp", player -> marriageManager.setPartnerPvp(player, true));
+			case "pvpoff" -> playerCommand(sender, "marriageplus.command.pvp", player -> marriageManager.setPartnerPvp(player, false));
+			case "announce" -> playerCommand(sender, "marriageplus.command.announce", player -> announce(player, args));
+			case "compliment" -> playerCommand(sender, "marriageplus.command.compliment", this::compliment);
+			case "family" -> playerCommand(sender, "marriageplus.command.family", player -> plugin.familyManager().familyCommand(player, args));
+			case "mail" -> playerCommand(sender, "marriageplus.command.mail", player -> mailManager.mailCommand(player, args));
+			case "level" -> playerCommand(sender, "marriageplus.command.level", marriageXpManager::levelCommand);
+			case "xp" -> playerCommand(sender, "marriageplus.command.level", marriageXpManager::xpCommand);
+			case "leaderboard", "leaderboards", "top" -> playerCommand(sender, "marriageplus.command.leaderboard", player -> plugin.leaderboardManager().leaderboardCommand(player, args));
+			case "achievements" -> playerCommand(sender, "marriageplus.command.achievements", player -> achievementManager.achievementsCommand(player, args));
+			case "gift" -> playerCommand(sender, "marriageplus.command.gift", this::giftItem);
+			case "backpack" -> playerCommand(sender, "marriageplus.command.backpack", player -> backpackManager.backpackCommand(player, args));
+			case "anniversary" -> playerCommand(sender, "marriageplus.command.anniversary", this::showAnniversary);
+			case "pronouns" -> playerCommand(sender, "marriageplus.command.pronouns", player -> pronounManager.pronounsCommand(player, args));
+			case "title" -> playerCommand(sender, "marriageplus.command.title", player -> socialManager.titleCommand(player, args));
+			case "ring" -> playerCommand(sender, "marriageplus.command.ring", player -> plugin.ringManager().ringCommand(player, args));
+			case "note", "lovenote", "lovenotes" -> playerCommand(sender, "marriageplus.command.lovenotes", player -> plugin.loveNoteManager().noteCommand(player, args));
+			case "nickname" -> playerCommand(sender, "marriageplus.command.nickname", player -> socialManager.nicknameCommand(player, args));
+			case "requests" -> playerCommand(sender, "marriageplus.command.requests", player -> requestManager.requestsCommand(player, args));
+			case "block" -> playerCommand(sender, "marriageplus.command.block", player -> requestManager.blockCommand(player, args));
+			case "unblock" -> playerCommand(sender, "marriageplus.command.block", player -> requestManager.unblockCommand(player, args));
+			case "blocklist" -> playerCommand(sender, "marriageplus.command.block", requestManager::showBlocklist);
+			case "menu", "gui" -> playerCommand(sender, "marriageplus.command.menu", player -> plugin.marriageGuiManager().openMainMenu(player));
 			case "priest" -> setPriest(sender, args);
-			case "reload" -> reloadMarriagePlugin(sender);
-			default -> {
-				if (isConfiguredAction(subCommand)) {
-					handleConfiguredActionCommand(sender, subCommand);
-					return true;
-				}
-
-				sendHelp(sender, 1);
-			}
+			case "reload" -> reload(sender);
+			default -> handleFallback(sender, subCommand);
 		}
 
 		return true;
+	}
+
+	private void handleFallback(CommandSender sender, String subCommand) {
+		if (isConfiguredAction(subCommand)) {
+			String permission = plugin.configs().actions().getString(subCommand + ".permission", "marriageplus.command.actions");
+			playerCommand(sender, permission, player -> configuredInteraction(player, subCommand));
+			return;
+		}
+
+		sendHelp(sender, 1);
 	}
 
 	@Override
@@ -163,379 +190,186 @@ public class MarryCommand implements TabExecutor {
 			return Collections.emptyList();
 		}
 
-		if (args.length == 1) {
-			List<String> completions = new ArrayList<>(List.of("help", "accept", "deny"));
+		return switch (args.length) {
+			case 1 -> completeFirstArg(sender, args[0]);
+			case 2 -> completeSecondArg(sender, args[0], args[1]);
+			case 3 -> completeThirdArg(args[0], args[1], args[2]);
+			case 4 -> completeFourthArg(args[0], args[1], args[3]);
+			case 5 -> completeFifthArg(args[0], args[1], args[4]);
+			default -> Collections.emptyList();
+		};
+	}
 
-			addIfAllowed(sender, completions, "marriageplus.command.me", "me");
-			addIfAllowed(sender, completions, "marriageplus.command.divorce", "divorce");
-			addIfAllowed(sender, completions, "marriageplus.command.list", "list");
-			addIfAllowed(sender, completions, "marriageplus.command.partner", "partner");
-			addIfAllowed(sender, completions, "marriageplus.command.status", "status");
-			addIfAllowed(sender, completions, "marriageplus.command.tp", "tp");
+	private List<String> completeFirstArg(CommandSender sender, String input) {
+		List<String> completions = new ArrayList<>(List.of("help", "accept", "deny"));
 
-			if (canUse(sender, "marriageplus.command.home")) {
-				completions.add("sethome");
-				completions.add("home");
-				completions.add("homes");
-				completions.add("delhome");
-			}
+		Map<String, String> permissionCompletions = new LinkedHashMap<>();
+		permissionCompletions.put("marriageplus.command.me", "me");
+		permissionCompletions.put("marriageplus.command.menu", "menu");
+		permissionCompletions.put("marriageplus.command.divorce", "divorce");
+		permissionCompletions.put("marriageplus.command.list", "list");
+		permissionCompletions.put("marriageplus.command.partner", "partner");
+		permissionCompletions.put("marriageplus.command.profile", "profile");
+		permissionCompletions.put("marriageplus.command.status", "status");
+		permissionCompletions.put("marriageplus.command.quests", "quests");
+		permissionCompletions.put("marriageplus.command.tp", "tp");
+		permissionCompletions.put("marriageplus.command.chat", "chat");
+		permissionCompletions.put("marriageplus.command.announce", "announce");
+		permissionCompletions.put("marriageplus.command.compliment", "compliment");
+		permissionCompletions.put("marriageplus.command.family", "family");
+		permissionCompletions.put("marriageplus.command.mail", "mail");
+		permissionCompletions.put("marriageplus.command.lovenotes", "note");
+		permissionCompletions.put("marriageplus.command.ring", "ring");
+		permissionCompletions.put("marriageplus.command.ceremony", "ceremony");
+		permissionCompletions.put("marriageplus.command.level", "level");
+		permissionCompletions.put("marriageplus.command.level", "xp");
+		permissionCompletions.put("marriageplus.command.leaderboard", "leaderboard");
+		permissionCompletions.put("marriageplus.command.achievements", "achievements");
+		permissionCompletions.put("marriageplus.command.gift", "gift");
+		permissionCompletions.put("marriageplus.command.backpack", "backpack");
+		permissionCompletions.put("marriageplus.command.anniversary", "anniversary");
+		permissionCompletions.put("marriageplus.command.pronouns", "pronouns");
+		permissionCompletions.put("marriageplus.command.title", "title");
+		permissionCompletions.put("marriageplus.command.nickname", "nickname");
+		permissionCompletions.put("marriageplus.command.requests", "requests");
+		permissionCompletions.put("marriageplus.command.block", "block");
+		permissionCompletions.put("marriageplus.command.block", "unblock");
+		permissionCompletions.put("marriageplus.command.block", "blocklist");
 
-			addIfAllowed(sender, completions, "marriageplus.command.chat", "chat");
+		permissionCompletions.forEach((permission, completion) -> addIfAllowed(sender, completions, permission, completion));
 
-			if (canUse(sender, "marriageplus.command.pvp")) {
-				completions.add("pvpon");
-				completions.add("pvpoff");
-			}
-
-			for (String actionName : configuredActionNames()) {
-				String actionPermission = plugin.getConfig().getString("actions." + actionName + ".permission", "marriageplus.command.actions");
-
-				if (canUse(sender, actionPermission)) {
-					completions.add(actionName);
-				}
-			}
-
-			addIfAllowed(sender, completions, "marriageplus.command.announce", "announce");
-			addIfAllowed(sender, completions, "marriageplus.command.compliment", "compliment");
-			addIfAllowed(sender, completions, "marriageplus.command.mail", "mail");
-			addIfAllowed(sender, completions, "marriageplus.command.level", "level");
-			addIfAllowed(sender, completions, "marriageplus.command.level", "xp");
-			addIfAllowed(sender, completions, "marriageplus.command.achievements", "achievements");
-			addIfAllowed(sender, completions, "marriageplus.command.gift", "gift");
-			addIfAllowed(sender, completions, "marriageplus.command.backpack", "backpack");
-			addIfAllowed(sender, completions, "marriageplus.command.anniversary", "anniversary");
-			addIfAllowed(sender, completions, "marriageplus.command.pronouns", "pronouns");
-			addIfAllowed(sender, completions, "marriageplus.command.title", "title");
-			addIfAllowed(sender, completions, "marriageplus.command.nickname", "nickname");
-			addIfAllowed(sender, completions, "marriageplus.command.requests", "requests");
-			addIfAllowed(sender, completions, "marriageplus.command.block", "block");
-			addIfAllowed(sender, completions, "marriageplus.command.block", "unblock");
-			addIfAllowed(sender, completions, "marriageplus.command.block", "blocklist");
-
-			if (sender.hasPermission("marriageplus.admin")) {
-				completions.addAll(List.of("reload", "priest", "listenchat"));
-			}
-
-			if (sender.hasPermission("marriageplus.priest") || sender.hasPermission("marriageplus.admin")) {
-				completions.addAll(onlinePlayerNames());
-			}
-
-			return filterCompletions(completions, args[0]);
+		if (canUse(sender, "marriageplus.command.home")) {
+			completions.addAll(List.of("sethome", "home", "homes", "delhome"));
 		}
 
-		if (args.length == 2) {
-			String firstArg = args[0].toLowerCase(Locale.ROOT);
+		if (canUse(sender, "marriageplus.command.pvp")) {
+			completions.addAll(List.of("pvpon", "pvpoff"));
+		}
 
-			if (firstArg.equals("help")) {
-				return filterCompletions(List.of("1", "2", "3", "4", "5", "6", "7", "8"), args[1]);
-			}
+		for (String actionName : configuredActionNames()) {
+			String permission = plugin.configs().actions().getString(actionName + ".permission", "marriageplus.command.actions");
 
-			if (firstArg.equals("divorce")) {
-				List<String> completions = new ArrayList<>(List.of("yes", "no"));
-
-				if (sender.hasPermission("marriageplus.priest") || sender.hasPermission("marriageplus.admin")) {
-					completions.addAll(onlinePlayerNames());
-				}
-
-				return filterCompletions(completions, args[1]);
-			}
-
-			if (Set.of("me", "priest", "block", "unblock").contains(firstArg)) {
-				return filterCompletions(onlinePlayerNames(), args[1]);
-			}
-
-			if (firstArg.equals("mail")) {
-				return filterCompletions(List.of("send", "read", "clear"), args[1]);
-			}
-
-			if (firstArg.equals("achievements")) {
-				return filterCompletions(List.of("partner"), args[1]);
-			}
-
-			if (firstArg.equals("backpack")) {
-				return filterCompletions(List.of("on", "off"), args[1]);
-			}
-
-			if (firstArg.equals("chat")) {
-				return filterCompletions(List.of("toggle", "color", "prefix"), args[1]);
-			}
-
-			if (firstArg.equals("pronouns")) {
-				return filterCompletions(List.of("he/him", "she/her", "they/them", "any", "custom"), args[1]);
-			}
-
-			if (firstArg.equals("title")) {
-				return filterCompletions(List.of("on", "off"), args[1]);
-			}
-
-			if (firstArg.equals("nickname")) {
-				return filterCompletions(List.of("clear"), args[1]);
-			}
-
-			if (firstArg.equals("requests")) {
-				return filterCompletions(List.of("on", "off"), args[1]);
+			if (canUse(sender, permission)) {
+				completions.add(actionName);
 			}
 		}
 
-		if (args.length == 3 && args[0].equalsIgnoreCase("chat")) {
-			if (args[1].equalsIgnoreCase("color")) {
-				return filterCompletions(List.of("&f", "&d", "&c", "&a", "&b", "reset", "<#ff69b4>", "&#ff69b4"), args[2]);
+		if (sender.hasPermission("marriageplus.admin")) {
+			completions.addAll(List.of("reload", "priest", "listenchat"));
+		}
+
+		if (sender.hasPermission("marriageplus.priest") || sender.hasPermission("marriageplus.admin")) {
+			completions.addAll(onlinePlayerNames());
+		}
+
+		return filter(completions, input);
+	}
+
+	private List<String> completeSecondArg(CommandSender sender, String firstArg, String input) {
+		firstArg = firstArg.toLowerCase(Locale.ROOT);
+
+		return switch (firstArg) {
+			case "help" -> filter(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10"), input);
+			case "divorce" -> completeDivorceSecondArg(sender, input);
+			case "me", "priest", "block", "unblock", "profile" -> filter(onlinePlayerNames(), input);
+			case "ring" -> filter(List.of("replace"), input);
+			case "mail" -> filter(List.of("send", "read", "clear"), input);
+			case "ceremony" -> filter(List.of("start", "accept", "cancel"), input);
+			case "leaderboard", "leaderboards", "top" -> filter(List.of("level", "xp", "longest", "achievements"), input);
+			case "note", "lovenote", "lovenotes" -> filter(List.of("send"), input);
+			case "anniversary", "quests" -> filter(List.of("claim"), input);
+			case "status" -> filter(List.of("set", "clear"), input);
+			case "achievements" -> filter(List.of("partner"), input);
+			case "backpack" -> filter(List.of("on", "off"), input);
+			case "chat" -> filter(List.of("toggle", "color", "prefix"), input);
+			case "pronouns" -> filter(List.of("he/him", "she/her", "they/them", "any", "custom"), input);
+			case "title" -> filter(List.of("on", "off"), input);
+			case "nickname" -> filter(List.of("clear"), input);
+			case "requests" -> filter(List.of("on", "off"), input);
+			case "family" -> filter(List.of("help", "invite", "adopt", "accept", "deny", "decline", "leave", "kick", "rename", "chat", "tree", "web"), input);
+			default -> Collections.emptyList();
+		};
+	}
+
+	private List<String> completeDivorceSecondArg(CommandSender sender, String input) {
+		List<String> completions = new ArrayList<>(List.of("yes", "no"));
+
+		if (sender.hasPermission("marriageplus.priest") || sender.hasPermission("marriageplus.admin")) {
+			completions.addAll(onlinePlayerNames());
+		}
+
+		return filter(completions, input);
+	}
+
+	private List<String> completeThirdArg(String firstArg, String secondArg, String input) {
+		if (firstArg.equalsIgnoreCase("family")) {
+			if (secondArg.equalsIgnoreCase("invite") || secondArg.equalsIgnoreCase("adopt") || secondArg.equalsIgnoreCase("kick")) {
+				return filter(onlinePlayerNames(), input);
 			}
 
-			if (args[1].equalsIgnoreCase("prefix")) {
-				return filterCompletions(List.of("on", "off"), args[2]);
+			if (secondArg.equalsIgnoreCase("web")) {
+				return filter(List.of("export"), input);
 			}
 		}
 
-		if (args.length == 3 && isPlayerName(args[0])) {
-			return filterCompletions(onlinePlayerNames(), args[2]);
+		if (firstArg.equalsIgnoreCase("chat")) {
+			if (secondArg.equalsIgnoreCase("color")) {
+				return filter(List.of("&f", "&d", "&c", "&a", "&b", "reset", "<#ff69b4>", "&#ff69b4"), input);
+			}
+
+			if (secondArg.equalsIgnoreCase("prefix")) {
+				return filter(List.of("on", "off"), input);
+			}
 		}
 
-		if (args.length >= 3 && args[0].equalsIgnoreCase("pronouns") && args[1].equalsIgnoreCase("custom")) {
-			if (args.length == 3) {
-				return filterCompletions(List.of("he", "she", "they", "xe"), args[2]);
-			}
+		if (firstArg.equalsIgnoreCase("pronouns") && secondArg.equalsIgnoreCase("custom")) {
+			return filter(List.of("he", "she", "they", "xe"), input);
+		}
 
-			if (args.length == 4) {
-				return filterCompletions(List.of("him", "her", "them", "xem"), args[3]);
-			}
-
-			if (args.length == 5) {
-				return filterCompletions(List.of("his", "her", "their", "xyr"), args[4]);
-			}
+		if (isPlayerName(firstArg)) {
+			return filter(onlinePlayerNames(), input);
 		}
 
 		return Collections.emptyList();
 	}
 
-	private void handleConfiguredActionCommand(CommandSender sender, String actionName) {
-		String permission = plugin.getConfig().getString("actions." + actionName + ".permission", "marriageplus.command.actions");
-		runWithPermission(sender, permission, player -> configuredInteraction(player, actionName));
-	}
-
-	private boolean isConfiguredAction(String actionName) {
-		return plugin.getConfig().isConfigurationSection("actions." + actionName);
-	}
-
-	private List<String> configuredActionNames() {
-		ConfigurationSection actionsSection = plugin.getConfig().getConfigurationSection("actions");
-
-		if (actionsSection == null) {
-			return Collections.emptyList();
+	private List<String> completeFourthArg(String firstArg, String secondArg, String input) {
+		if (firstArg.equalsIgnoreCase("pronouns") && secondArg.equalsIgnoreCase("custom")) {
+			return filter(List.of("him", "her", "them", "xem"), input);
 		}
 
-		boolean nsfwEnabled = plugin.getConfig().getBoolean("settings.nsfw-actions-enabled", false);
+		return Collections.emptyList();
+	}
 
-		return actionsSection.getKeys(false).stream()
-				.filter(actionName -> nsfwEnabled || !plugin.getConfig().getBoolean("actions." + actionName + ".nsfw", false))
-				.sorted(String.CASE_INSENSITIVE_ORDER)
-				.toList();
+	private List<String> completeFifthArg(String firstArg, String secondArg, String input) {
+		if (firstArg.equalsIgnoreCase("pronouns") && secondArg.equalsIgnoreCase("custom")) {
+			return filter(List.of("his", "her", "their", "xyr"), input);
+		}
+
+		return Collections.emptyList();
+	}
+
+	private void handleStatus(Player player, String[] args) {
+		if (args.length >= 2 && args[1].equalsIgnoreCase("set")) {
+			profileManager.setStatus(player, args);
+			return;
+		}
+
+		if (args.length >= 2 && args[1].equalsIgnoreCase("clear")) {
+			profileManager.clearStatus(player);
+			return;
+		}
+
+		showStatus(player);
 	}
 
 	private void handleDivorce(CommandSender sender, String[] args) {
-		if (args.length >= 2
-				&& !args[1].equalsIgnoreCase("yes")
-				&& !args[1].equalsIgnoreCase("no")) {
+		if (args.length >= 2 && !args[1].equalsIgnoreCase("yes") && !args[1].equalsIgnoreCase("no")) {
 			priestDivorce(sender, args[1]);
 			return;
 		}
 
-		runWithPermission(sender, "marriageplus.command.divorce", player -> selfDivorce(player, args));
-	}
-
-	private void sendHelp(CommandSender sender, String[] args) {
-		int page = 1;
-
-		if (args.length >= 2) {
-			try {
-				page = Integer.parseInt(args[1]);
-			} catch (NumberFormatException ignored) {
-				plugin.langManager().send(sender, "help.usage");
-				return;
-			}
-		}
-
-		sendHelp(sender, page);
-	}
-
-	private void sendHelp(CommandSender sender, int page) {
-		List<HelpEntry> entries = new ArrayList<>(List.of(
-				help("/marry", lang("help.descriptions.main"), "/marry"),
-				help("/marry help <page>", lang("help.descriptions.help"), "/marry help "),
-				help("/marry me <player>", lang("help.descriptions.me"), "/marry me "),
-				help("/marry accept", lang("help.descriptions.accept"), "/marry accept"),
-				help("/marry deny", lang("help.descriptions.deny"), "/marry deny"),
-				help("/marry divorce", lang("help.descriptions.divorce"), "/marry divorce"),
-				help("/marry list", lang("help.descriptions.list"), "/marry list"),
-				help("/marry partner", lang("help.descriptions.partner"), "/marry partner"),
-				help("/marry status", lang("help.descriptions.status"), "/marry status"),
-				help("/marry tp", lang("help.descriptions.tp"), "/marry tp"),
-				help("/marry sethome", lang("help.descriptions.sethome"), "/marry sethome"),
-				help("/marry sethome <name>", lang("help.descriptions.sethome-named"), "/marry sethome "),
-				help("/marry home", lang("help.descriptions.home"), "/marry home"),
-				help("/marry home <name>", lang("help.descriptions.home-named"), "/marry home "),
-				help("/marry homes", lang("help.descriptions.homes"), "/marry homes"),
-				help("/marry delhome <name>", lang("help.descriptions.delhome"), "/marry delhome "),
-				help("/marry chat <message>", lang("help.descriptions.chat"), "/marry chat "),
-				help("/marry chat toggle", lang("help.descriptions.chat-toggle"), "/marry chat toggle"),
-				help("/marry chat color <color>", lang("help.descriptions.chat-color"), "/marry chat color "),
-				help("/marry chat color reset", lang("help.descriptions.chat-color-reset"), "/marry chat color reset"),
-				help("/marry chat prefix <on|off>", lang("help.descriptions.chat-prefix"), "/marry chat prefix "),
-				help("/marry pvpon", lang("help.descriptions.pvpon"), "/marry pvpon"),
-				help("/marry pvpoff", lang("help.descriptions.pvpoff"), "/marry pvpoff"),
-				help("/marry announce <message>", lang("help.descriptions.announce"), "/marry announce "),
-				help("/marry compliment", lang("help.descriptions.compliment"), "/marry compliment"),
-				help("/marry mail send <message>", lang("help.descriptions.mail-send"), "/marry mail send "),
-				help("/marry mail read", lang("help.descriptions.mail-read"), "/marry mail read"),
-				help("/marry mail clear", lang("help.descriptions.mail-clear"), "/marry mail clear"),
-				help("/marry level", lang("help.descriptions.level"), "/marry level"),
-				help("/marry xp", lang("help.descriptions.xp"), "/marry xp"),
-				help("/marry achievements", lang("help.descriptions.achievements"), "/marry achievements"),
-				help("/marry achievements partner", lang("help.descriptions.achievements-partner"), "/marry achievements partner"),
-				help("/marry gift", lang("help.descriptions.gift"), "/marry gift"),
-				help("/marry backpack", lang("help.descriptions.backpack"), "/marry backpack"),
-				help("/marry backpack on", lang("help.descriptions.backpack-on"), "/marry backpack on"),
-				help("/marry backpack off", lang("help.descriptions.backpack-off"), "/marry backpack off"),
-				help("/marry anniversary", lang("help.descriptions.anniversary"), "/marry anniversary"),
-				help("/marry pronouns", lang("help.descriptions.pronouns"), "/marry pronouns"),
-				help("/marry pronouns <he/him|she/her|they/them|any>", lang("help.descriptions.pronouns-set"), "/marry pronouns "),
-				help("/marry pronouns custom <subject> <object> <possessive>", lang("help.descriptions.pronouns-custom"), "/marry pronouns custom "),
-				help("/marry title on", lang("help.descriptions.title-on"), "/marry title on"),
-				help("/marry title off", lang("help.descriptions.title-off"), "/marry title off"),
-				help("/marry title <text>", lang("help.descriptions.title"), "/marry title "),
-				help("/marry nickname <name>", lang("help.descriptions.nickname"), "/marry nickname "),
-				help("/marry nickname clear", lang("help.descriptions.nickname-clear"), "/marry nickname clear"),
-				help("/marry requests on", lang("help.descriptions.requests-on"), "/marry requests on"),
-				help("/marry requests off", lang("help.descriptions.requests-off"), "/marry requests off"),
-				help("/marry block <player>", lang("help.descriptions.block"), "/marry block "),
-				help("/marry unblock <player>", lang("help.descriptions.unblock"), "/marry unblock "),
-				help("/marry blocklist", lang("help.descriptions.blocklist"), "/marry blocklist")
-		));
-
-		addConfiguredActionHelpEntries(sender, entries);
-
-		if (sender.hasPermission("marriageplus.priest") || sender.hasPermission("marriageplus.admin")) {
-			entries.add(help("/marry <player1> <player2>", lang("help.descriptions.priest-marry"), "/marry "));
-			entries.add(help("/marry divorce <player>", lang("help.descriptions.priest-divorce"), "/marry divorce "));
-		}
-
-		if (sender.hasPermission("marriageplus.admin")) {
-			entries.add(help("/marry priest <player>", lang("help.descriptions.priest"), "/marry priest "));
-			entries.add(help("/marry listenchat", lang("help.descriptions.listenchat"), "/marry listenchat"));
-			entries.add(help("/marry reload", lang("help.descriptions.reload"), "/marry reload"));
-		}
-
-		int entriesPerPage = 8;
-		int maxPage = Math.max(1, (int) Math.ceil(entries.size() / (double) entriesPerPage));
-		page = Math.max(1, Math.min(page, maxPage));
-
-		plugin.langManager().send(sender, "help.header", Map.of(
-				"%page%", String.valueOf(page),
-				"%max_page%", String.valueOf(maxPage)
-		));
-
-		int start = (page - 1) * entriesPerPage;
-		int end = Math.min(start + entriesPerPage, entries.size());
-
-		for (int index = start; index < end; index++) {
-			sendClickableHelpEntry(sender, entries.get(index));
-		}
-
-		sendHelpPageSelector(sender, page, maxPage);
-	}
-
-	private void addConfiguredActionHelpEntries(CommandSender sender, List<HelpEntry> entries) {
-		for (String actionName : configuredActionNames()) {
-			String actionPermission = plugin.getConfig().getString("actions." + actionName + ".permission", "marriageplus.command.actions");
-
-			if (!canUse(sender, actionPermission)) {
-				continue;
-			}
-
-			String displayName = plugin.getConfig().getString("actions." + actionName + ".display-name", actionName);
-			String description = plugin.getConfig().getString(
-					"actions." + actionName + ".description",
-					plainLang("help.descriptions.configured-action", Map.of("%action%", displayName))
-			);
-
-			entries.add(help("/marry " + actionName, description, "/marry " + actionName));
-		}
-	}
-
-	private void sendClickableHelpEntry(CommandSender sender, HelpEntry entry) {
-		if (!(sender instanceof Player player)) {
-			plugin.langManager().send(sender, "help.line", Map.of(
-					"%command%", entry.command(),
-					"%description%", entry.description()
-			));
-			return;
-		}
-
-		Component commandComponent = legacy(plugin.langManager().get("help.clickable-command", Map.of(
-				"%command%", entry.command()
-		)))
-				.clickEvent(ClickEvent.suggestCommand(entry.suggestedCommand()))
-				.hoverEvent(HoverEvent.showText(legacy(plugin.langManager().get("help.hover", Map.of(
-						"%description%", entry.description()
-				)))));
-
-		player.sendMessage(commandComponent.append(legacy(plugin.langManager().get("help.clickable-description", Map.of(
-				"%description%", entry.description()
-		)))));
-	}
-
-	private void sendHelpPageSelector(CommandSender sender, int currentPage, int maxPage) {
-		if (!(sender instanceof Player player)) {
-			StringBuilder consoleSelector = new StringBuilder(plugin.langManager().get("help.pages-prefix"));
-
-			for (int page = 1; page <= maxPage; page++) {
-				if (page > 1) {
-					consoleSelector.append(plugin.langManager().get("help.pages-separator"));
-				}
-
-				consoleSelector.append(plugin.langManager().get(page == currentPage ? "help.page-current" : "help.page-other", Map.of(
-						"%page%", String.valueOf(page)
-				)));
-			}
-
-			sender.sendMessage(consoleSelector.toString());
-			return;
-		}
-
-		Component selector = legacy(plugin.langManager().get("help.pages-prefix"));
-
-		for (int page = 1; page <= maxPage; page++) {
-			if (page > 1) {
-				selector = selector.append(legacy(plugin.langManager().get("help.pages-separator")));
-			}
-
-			selector = selector.append(legacy(plugin.langManager().get(page == currentPage ? "help.page-current" : "help.page-other", Map.of(
-					"%page%", String.valueOf(page)
-			)))
-					.clickEvent(ClickEvent.runCommand("/marry help " + page))
-					.hoverEvent(HoverEvent.showText(legacy(plugin.langManager().get("help.page-hover", Map.of(
-							"%page%", String.valueOf(page)
-					))))));
-		}
-
-		player.sendMessage(selector);
-	}
-
-	private void marryTwoPlayers(CommandSender sender, String firstName, String secondName) {
-		if (!sender.hasPermission("marriageplus.priest") && !sender.hasPermission("marriageplus.admin")) {
-			plugin.langManager().send(sender, "priest.only-priests-marry");
-			return;
-		}
-
-		Player first = Bukkit.getPlayerExact(firstName);
-		Player second = Bukkit.getPlayerExact(secondName);
-
-		if (first == null || second == null) {
-			plugin.langManager().send(sender, "priest.both-players-online");
-			return;
-		}
-
-		marriageManager.marryPlayers(first, second);
+		playerCommand(sender, "marriageplus.command.divorce", player -> selfDivorce(player, args));
 	}
 
 	private void selfDivorce(Player player, String[] args) {
@@ -553,11 +387,10 @@ public class MarryCommand implements TabExecutor {
 		}
 
 		if (args.length < 2 || !args[1].equalsIgnoreCase("yes")) {
-			int confirmSeconds = plugin.getConfig().getInt("settings.divorce-confirm-seconds", 30);
-			divorceConfirmations.put(player.getUniqueId(), System.currentTimeMillis() + confirmSeconds * 1000L);
-
+			int seconds = plugin.getConfig().getInt("settings.divorce-confirm-seconds", 30);
+			divorceConfirmations.put(player.getUniqueId(), System.currentTimeMillis() + seconds * 1000L);
 			plugin.langManager().send(player, "divorce.confirm-question");
-			sendDivorceConfirmationButtons(player, confirmSeconds);
+			sendDivorceButtons(player, seconds);
 			return;
 		}
 
@@ -570,33 +403,10 @@ public class MarryCommand implements TabExecutor {
 		}
 
 		divorceConfirmations.remove(player.getUniqueId());
-
 		marriageManager.divorceCouple(player.getUniqueId(), partnerId);
+
 		plugin.langManager().send(player, "divorce.success-self");
-
-		Player partner = Bukkit.getPlayer(partnerId);
-
-		if (partner != null) {
-			plugin.langManager().send(partner, "divorce.partner-divorced-you", Map.of(
-					"%player%", player.getName()
-			));
-		}
-	}
-
-	private void sendDivorceConfirmationButtons(Player player, int confirmSeconds) {
-		Component buttons = legacy(plugin.langManager().get("divorce.buttons-prefix"))
-				.append(legacy(plugin.langManager().get("divorce.yes-button"))
-						.clickEvent(ClickEvent.runCommand("/marry divorce yes"))
-						.hoverEvent(HoverEvent.showText(legacy(plugin.langManager().get("divorce.yes-hover")))))
-				.append(legacy(plugin.langManager().get("divorce.buttons-separator")))
-				.append(legacy(plugin.langManager().get("divorce.no-button"))
-						.clickEvent(ClickEvent.runCommand("/marry divorce no"))
-						.hoverEvent(HoverEvent.showText(legacy(plugin.langManager().get("divorce.no-hover")))))
-				.append(legacy(plugin.langManager().get("divorce.buttons-expire", Map.of(
-						"%seconds%", String.valueOf(confirmSeconds)
-				))));
-
-		player.sendMessage(buttons);
+		sendIfOnline(partnerId, "divorce.partner-divorced-you", Map.of("%player%", player.getName()));
 	}
 
 	private void priestDivorce(CommandSender sender, String playerName) {
@@ -604,6 +414,62 @@ public class MarryCommand implements TabExecutor {
 			plugin.langManager().send(sender, "priest.only-priests-divorce");
 			return;
 		}
+
+		OfflinePlayer target = Bukkit.getOfflinePlayer(playerName);
+		UUID partnerId = marriageManager.getPartnerId(target.getUniqueId());
+
+		if (partnerId == null) {
+			plugin.langManager().send(sender, "marriage.target-not-married");
+			return;
+		}
+
+		marriageManager.divorceCouple(target.getUniqueId(), partnerId);
+
+		plugin.langManager().send(sender, "priest.divorced-marriage", Map.of(
+				"%player%", target.getName() == null ? playerName : target.getName()
+		));
+
+		sendIfOnline(target.getUniqueId(), "divorce.success-self");
+		sendIfOnline(partnerId, "divorce.partner-divorced-you", Map.of("%player%", sender.getName()));
+	}
+
+	private void marryTwoPlayers(CommandSender sender, String firstName, String secondName) {
+		if (!sender.hasPermission("marriageplus.priest") && !sender.hasPermission("marriageplus.admin")) {
+			plugin.langManager().send(sender, "priest.only-priests-marry");
+			return;
+		}
+
+		Player first = Bukkit.getPlayerExact(firstName);
+		Player second = Bukkit.getPlayerExact(secondName);
+
+		if (first == null || second == null) {
+			plugin.langManager().send(sender, "priest.both-players-online");
+			return;
+		}
+
+		if (first.getUniqueId().equals(second.getUniqueId())) {
+			plugin.langManager().send(sender, "marriage.cannot-marry-yourself");
+			return;
+		}
+
+		if (marriageManager.isMarried(first.getUniqueId()) || marriageManager.isMarried(second.getUniqueId())) {
+			plugin.langManager().send(sender, "marriage.one-already-married");
+			return;
+		}
+
+		FamilyMarriageCheckResult result = plugin.familyManager().checkMarriageAllowed(first, second);
+
+		if (result == FamilyMarriageCheckResult.BLOCKED) {
+			plugin.langManager().send(sender, "family.marriage-blocked-related");
+			return;
+		}
+
+		if (result == FamilyMarriageCheckResult.WARN) {
+			plugin.langManager().send(first, "family.marriage-warning-related");
+			plugin.langManager().send(second, "family.marriage-warning-related");
+		}
+
+		marriageManager.marryPlayers(first, second);
 	}
 
 	private void showPartner(Player player) {
@@ -636,6 +502,7 @@ public class MarryCommand implements TabExecutor {
 		OfflinePlayer partner = Bukkit.getOfflinePlayer(partnerId);
 		long date = dataManager.dataConfig().getLong("marriage-dates." + player.getUniqueId(), 0L);
 		long days = date <= 0L ? 0L : Math.max(0L, (System.currentTimeMillis() - date) / 86_400_000L);
+		String coupleKey = marriageManager.coupleKey(player.getUniqueId(), partnerId);
 
 		plugin.langManager().send(player, "status.partner", Map.of("%partner%", safeName(partner)));
 		plugin.langManager().send(player, "status.partner-nickname", Map.of("%nickname%", socialManager.getPartnerDisplayName(player.getUniqueId(), partnerId)));
@@ -653,7 +520,7 @@ public class MarryCommand implements TabExecutor {
 				"%max%", String.valueOf(homeManager.getMaxHomes(player))
 		));
 		plugin.langManager().send(player, "status.partner-pvp", Map.of(
-				"%status%", booleanStatus(marriageManager.pvpEnabledCouples().contains(marriageManager.coupleKey(player.getUniqueId(), partnerId)))
+				"%status%", booleanStatus(marriageManager.pvpEnabledCouples().contains(coupleKey))
 		));
 		plugin.langManager().send(player, "status.your-backpack-access", Map.of(
 				"%status%", accessStatus(backpackManager.backpackAllowed().contains(player.getUniqueId()))
@@ -682,56 +549,6 @@ public class MarryCommand implements TabExecutor {
 		plugin.langManager().send(player, "teleport.success");
 	}
 
-	private void configuredInteraction(Player player, String actionName) {
-		if (cooldownManager.isOnCooldown(player, "action")) {
-			return;
-		}
-
-		String actionPath = "actions." + actionName;
-
-		if (!plugin.getConfig().isConfigurationSection(actionPath)) {
-			plugin.langManager().send(player, "actions.unknown");
-			return;
-		}
-
-		boolean actionIsNsfw = plugin.getConfig().getBoolean(actionPath + ".nsfw", false);
-		boolean nsfwEnabled = plugin.getConfig().getBoolean("settings.nsfw-actions-enabled", false);
-
-		if (actionIsNsfw && !nsfwEnabled) {
-			plugin.langManager().send(player, "actions.nsfw-disabled");
-			return;
-		}
-
-		Player partner = marriageManager.getOnlinePartner(player);
-
-		if (partner == null) {
-			return;
-		}
-
-		List<String> messages = plugin.getConfig().getStringList(actionPath + ".broadcast-messages");
-
-		if (messages.isEmpty()) {
-			plugin.langManager().send(player, "actions.no-messages-configured");
-			return;
-		}
-
-		String displayName = plugin.getConfig().getString(actionPath + ".display-name", actionName);
-		String message = messages.get(ThreadLocalRandom.current().nextInt(messages.size()))
-				.replace("%player%", player.getName())
-				.replace("%partner%", partner.getName())
-				.replace("%partner_nickname%", socialManager.getPartnerDisplayName(player.getUniqueId(), partner.getUniqueId()))
-				.replace("%action%", displayName);
-
-		message = pronounManager.applyPronounPlaceholders(message, player, partner);
-
-		playActionEffects(player, partner, actionPath);
-		cooldownManager.setCooldown(player, "action", plugin.getConfig().getInt("settings.cooldowns.action-seconds", 5));
-		marriageXpManager.addXp(player, "actions");
-		achievementManager.unlockByTrigger(player, "action", actionName);
-
-		Bukkit.broadcastMessage(color(message));
-	}
-
 	private void announce(Player player, String[] args) {
 		if (cooldownManager.isOnCooldown(player, "announce")) {
 			return;
@@ -748,7 +565,7 @@ public class MarryCommand implements TabExecutor {
 			return;
 		}
 
-		String announcement = String.join(" ", Arrays.copyOfRange(args, 1, args.length)).trim();
+		String announcement = joinArgs(args, 1);
 
 		if (announcement.isBlank()) {
 			plugin.langManager().send(player, "announce.usage");
@@ -758,19 +575,15 @@ public class MarryCommand implements TabExecutor {
 		int maxLength = plugin.getConfig().getInt("announcements.max-length", 120);
 
 		if (announcement.length() > maxLength) {
-			plugin.langManager().send(player, "announce.too-long", Map.of(
-					"%max%", String.valueOf(maxLength)
-			));
+			plugin.langManager().send(player, "announce.too-long", Map.of("%max%", String.valueOf(maxLength)));
 			return;
 		}
 
 		String format = plugin.getConfig().getString("announcements.format", "&c❤ &d%player% &7& &d%partner%&7: &f%message%");
-		String message = applyCouplePlaceholders(format, player, partner)
-				.replace("%message%", announcement);
+		String message = applyCouplePlaceholders(format, player, partner).replace("%message%", announcement);
 
 		cooldownManager.setCooldown(player, "announce", plugin.getConfig().getInt("settings.cooldowns.announce-seconds", 60));
 		marriageXpManager.addXp(player, "actions");
-
 		Bukkit.broadcastMessage(color(message));
 	}
 
@@ -792,15 +605,12 @@ public class MarryCommand implements TabExecutor {
 			return;
 		}
 
-		String message = compliments.get(ThreadLocalRandom.current().nextInt(compliments.size()));
-		message = applyCouplePlaceholders(message, player, partner);
+		String message = applyCouplePlaceholders(random(compliments), player, partner);
 
 		cooldownManager.setCooldown(player, "compliment", plugin.getConfig().getInt("settings.cooldowns.compliment-seconds", 30));
 		marriageXpManager.addXp(player, "actions");
 
-		String mode = plugin.getConfig().getString("compliments.mode", "PUBLIC");
-
-		if (mode != null && mode.equalsIgnoreCase("PRIVATE")) {
+		if (plugin.getConfig().getString("compliments.mode", "PUBLIC").equalsIgnoreCase("PRIVATE")) {
 			player.sendMessage(color(message));
 			partner.sendMessage(color(message));
 			return;
@@ -809,82 +619,65 @@ public class MarryCommand implements TabExecutor {
 		Bukkit.broadcastMessage(color(message));
 	}
 
-	private String applyCouplePlaceholders(String message, Player player, Player partner) {
-		String replaced = message
-				.replace("%player%", player.getName())
-				.replace("%partner%", partner.getName())
-				.replace("%partner_nickname%", socialManager.getPartnerDisplayName(player.getUniqueId(), partner.getUniqueId()));
-
-		return pronounManager.applyPronounPlaceholders(replaced, player, partner);
-	}
-
-	private void playActionEffects(Player player, Player partner, String actionPath) {
-		String particleName = plugin.getConfig().getString(actionPath + ".particle", "");
-		String soundName = plugin.getConfig().getString(actionPath + ".sound", "");
-
-		Particle particle = getParticleFromConfig(particleName);
-
-		if (particle != null) {
-			player.getWorld().spawnParticle(
-					particle,
-					player.getLocation().add(0.0, 1.2, 0.0),
-					12,
-					0.4,
-					0.5,
-					0.4,
-					0.02
-			);
-
-			partner.getWorld().spawnParticle(
-					particle,
-					partner.getLocation().add(0.0, 1.2, 0.0),
-					12,
-					0.4,
-					0.5,
-					0.4,
-					0.02
-			);
-		} else if (!particleName.isBlank()) {
-			plugin.getLogger().warning(plainLang("logs.invalid-particle", Map.of("%particle%", particleName)));
+	private void configuredInteraction(Player player, String actionName) {
+		if (cooldownManager.isOnCooldown(player, "action")) {
+			return;
 		}
 
-		Sound sound = getSoundFromConfig(soundName);
+		ConfigurationSection section = plugin.configs().actions().getConfigurationSection(actionName);
+
+		if (section == null) {
+			plugin.langManager().send(player, "actions.unknown");
+			return;
+		}
+
+		if (section.getBoolean("nsfw", false) && !plugin.getConfig().getBoolean("settings.nsfw-actions-enabled", false)) {
+			plugin.langManager().send(player, "actions.nsfw-disabled");
+			return;
+		}
+
+		Player partner = marriageManager.getOnlinePartner(player);
+
+		if (partner == null) {
+			return;
+		}
+
+		List<String> messages = section.getStringList("broadcast-messages");
+
+		if (messages.isEmpty()) {
+			plugin.langManager().send(player, "actions.no-messages-configured");
+			return;
+		}
+
+		String displayName = section.getString("display-name", actionName);
+		String message = random(messages)
+				.replace("%player%", player.getName())
+				.replace("%partner%", partner.getName())
+				.replace("%partner_nickname%", socialManager.getPartnerDisplayName(player.getUniqueId(), partner.getUniqueId()))
+				.replace("%action%", displayName);
+
+		playActionEffects(player, partner, actionName);
+
+		cooldownManager.setCooldown(player, "action", plugin.getConfig().getInt("settings.cooldowns.action-seconds", 5));
+		marriageXpManager.addXp(player, "actions");
+		achievementManager.unlockByTrigger(player, "action", actionName);
+
+		Bukkit.broadcastMessage(color(pronounManager.applyPronounPlaceholders(message, player, partner)));
+	}
+
+	private void playActionEffects(Player player, Player partner, String actionName) {
+		Particle particle = particle(plugin.configs().actions().getString(actionName + ".particle", ""));
+		Sound sound = sound(plugin.configs().actions().getString(actionName + ".sound", ""));
+
+		if (particle != null) {
+			player.getWorld().spawnParticle(particle, player.getLocation().add(0.0, 1.2, 0.0), 12, 0.4, 0.5, 0.4, 0.02);
+			partner.getWorld().spawnParticle(particle, partner.getLocation().add(0.0, 1.2, 0.0), 12, 0.4, 0.5, 0.4, 0.02);
+		}
 
 		if (sound != null) {
 			player.playSound(player.getLocation(), sound, 1.0F, 1.0F);
 			partner.playSound(partner.getLocation(), sound, 1.0F, 1.0F);
-		} else if (!soundName.isBlank()) {
-			plugin.getLogger().warning(plainLang("logs.invalid-sound", Map.of("%sound%", soundName)));
 		}
-	}
-
-	private Particle getParticleFromConfig(String particleName) {
-		if (particleName == null || particleName.isBlank()) {
-			return null;
-		}
-
-		try {
-			return Particle.valueOf(particleName.toUpperCase(Locale.ROOT));
-		} catch (IllegalArgumentException exception) {
-			return null;
-		}
-	}
-
-	private Sound getSoundFromConfig(String soundName) {
-		if (soundName == null || soundName.isBlank()) {
-			return null;
-		}
-
-		String normalizedName = soundName.toLowerCase(Locale.ROOT);
-
-		Sound sound = Registry.SOUNDS.get(NamespacedKey.minecraft(normalizedName));
-
-		if (sound != null) {
-			return sound;
-		}
-
-		String convertedEnumName = normalizedName.replace('_', '.');
-		return Registry.SOUNDS.get(NamespacedKey.minecraft(convertedEnumName));
 	}
 
 	private void giftItem(Player player) {
@@ -908,18 +701,12 @@ public class MarryCommand implements TabExecutor {
 		cooldownManager.setCooldown(player, "gift", plugin.getConfig().getInt("settings.cooldowns.gift-seconds", 2));
 		player.getInventory().setItemInMainHand(null);
 
-		HashMap<Integer, ItemStack> leftovers = partner.getInventory().addItem(item);
-
-		for (ItemStack leftover : leftovers.values()) {
+		for (ItemStack leftover : partner.getInventory().addItem(item).values()) {
 			player.getWorld().dropItemNaturally(partner.getLocation(), leftover);
 		}
 
-		plugin.langManager().send(player, "gift.sent", Map.of(
-				"%partner%", partner.getName()
-		));
-		plugin.langManager().send(partner, "gift.received", Map.of(
-				"%player%", player.getName()
-		));
+		plugin.langManager().send(player, "gift.sent", Map.of("%partner%", partner.getName()));
+		plugin.langManager().send(partner, "gift.received", Map.of("%player%", player.getName()));
 
 		marriageXpManager.addXp(player, "gifts");
 		achievementManager.unlockByTrigger(player, "gift");
@@ -941,9 +728,8 @@ public class MarryCommand implements TabExecutor {
 		}
 
 		long days = Math.max(0L, (System.currentTimeMillis() - date) / 86_400_000L);
-		plugin.langManager().send(player, "anniversary.married-for", Map.of(
-				"%days%", String.valueOf(days)
-		));
+
+		plugin.langManager().send(player, "anniversary.married-for", Map.of("%days%", String.valueOf(days)));
 		achievementManager.checkAnniversaryAchievements(player);
 	}
 
@@ -968,19 +754,249 @@ public class MarryCommand implements TabExecutor {
 		));
 	}
 
-	private void reloadMarriagePlugin(CommandSender sender) {
+	private void reload(CommandSender sender) {
 		if (!sender.hasPermission("marriageplus.admin")) {
 			plugin.langManager().send(sender, "general.no-permission");
 			return;
 		}
 
-		plugin.reloadConfig();
+		plugin.configs().reload();
 		plugin.langManager().reloadLang();
+
+		if (plugin.questManager() != null) {
+			plugin.questManager().loadQuestDefinitions();
+		}
 
 		plugin.langManager().send(sender, "general.reload");
 	}
 
-	private void runWithPermission(CommandSender sender, String permission, PlayerAction action) {
+	private void sendHelp(CommandSender sender, String[] args) {
+		try {
+			sendHelp(sender, args.length >= 2 ? Integer.parseInt(args[1]) : 1);
+		} catch (NumberFormatException exception) {
+			plugin.langManager().send(sender, "help.usage");
+		}
+	}
+
+	private void sendHelp(CommandSender sender, int page) {
+		List<HelpEntry> entries = helpEntries(sender);
+		int maxPage = Math.max(1, (int) Math.ceil(entries.size() / (double) HELP_ENTRIES_PER_PAGE));
+		page = Math.max(1, Math.min(page, maxPage));
+
+		plugin.langManager().send(sender, "help.header", Map.of(
+				"%page%", String.valueOf(page),
+				"%max_page%", String.valueOf(maxPage)
+		));
+
+		int start = (page - 1) * HELP_ENTRIES_PER_PAGE;
+		int end = Math.min(start + HELP_ENTRIES_PER_PAGE, entries.size());
+
+		for (int index = start; index < end; index++) {
+			sendHelpLine(sender, entries.get(index));
+		}
+
+		sendHelpPages(sender, page, maxPage);
+	}
+
+	private List<HelpEntry> helpEntries(CommandSender sender) {
+		List<HelpEntry> entries = new ArrayList<>(List.of(
+				help("/marry", "main"),
+				help("/marry help <page>", "help", "/marry help "),
+				help("/marry me <player>", "me", "/marry me "),
+				help("/marry accept", "accept"),
+				help("/marry deny", "deny"),
+				help("/marry divorce", "divorce"),
+				help("/marry list", "list"),
+				help("/marry partner", "partner"),
+				help("/marry status", "status"),
+				help("/marry status set <message>", "status-set", "/marry status set "),
+				help("/marry status clear", "status-clear"),
+				help("/marry quests", "quests"),
+				help("/marry quests claim", "quests-claim"),
+				help("/marry profile", "profile"),
+				help("/marry profile <player>", "profile-other", "/marry profile "),
+				help("/marry tp", "tp"),
+				help("/marry sethome", "sethome"),
+				help("/marry sethome <name>", "sethome-named", "/marry sethome "),
+				help("/marry home", "home"),
+				help("/marry home <name>", "home-named", "/marry home "),
+				help("/marry homes", "homes"),
+				help("/marry delhome <name>", "delhome", "/marry delhome "),
+				help("/marry chat <message>", "chat", "/marry chat "),
+				help("/marry chat toggle", "chat-toggle"),
+				help("/marry chat color <color>", "chat-color", "/marry chat color "),
+				help("/marry chat color reset", "chat-color-reset"),
+				help("/marry chat prefix <on|off>", "chat-prefix", "/marry chat prefix "),
+				help("/family", "family", "/family"),
+				help("/family help", "family", "/family help"),
+				help("/family invite <player>", "family-invite", "/family invite "),
+				help("/family adopt <player>", "family-adopt", "/family adopt "),
+				help("/family accept", "family-accept", "/family accept"),
+				help("/family deny", "family-deny", "/family deny"),
+				help("/family leave", "family-leave", "/family leave"),
+				help("/family kick <player>", "family-kick", "/family kick "),
+				help("/family rename <name>", "family-rename", "/family rename "),
+				help("/family chat <message>", "family-chat", "/family chat "),
+				help("/family tree", "family-web", "/family tree"),
+				help("/family web", "family-web", "/family web"),
+				help("/marry pvpon", "pvpon"),
+				help("/marry pvpoff", "pvpoff"),
+				help("/marry announce <message>", "announce", "/marry announce "),
+				help("/marry compliment", "compliment"),
+				help("/marry mail send <message>", "mail-send", "/marry mail send "),
+				help("/marry mail read", "mail-read"),
+				help("/marry mail clear", "mail-clear"),
+				help("/marry note", "love-note-list"),
+				help("/marry note send <message>", "love-note-send", "/marry note send "),
+				help("/marry menu", "menu"),
+				help("/marry ring", "ring"),
+				help("/marry ring replace", "ring-replace"),
+				help("/marry leaderboard", "leaderboard"),
+				help("/marry leaderboard level", "leaderboard-level"),
+				help("/marry leaderboard xp", "leaderboard-xp"),
+				help("/marry leaderboard longest", "leaderboard-longest"),
+				help("/marry level", "level"),
+				help("/marry xp", "xp"),
+				help("/marry achievements", "achievements"),
+				help("/marry achievements partner", "achievements-partner"),
+				help("/marry gift", "gift"),
+				help("/marry backpack", "backpack"),
+				help("/marry backpack on", "backpack-on"),
+				help("/marry backpack off", "backpack-off"),
+				help("/marry anniversary", "anniversary"),
+				help("/marry anniversary claim", "anniversary-claim"),
+				help("/marry pronouns", "pronouns"),
+				help("/marry pronouns <he/him|she/her|they/them|any>", "pronouns-set", "/marry pronouns "),
+				help("/marry pronouns custom <subject> <object> <possessive>", "pronouns-custom", "/marry pronouns custom "),
+				help("/marry title on", "title-on"),
+				help("/marry title off", "title-off"),
+				help("/marry title <text>", "title", "/marry title "),
+				help("/marry nickname <name>", "nickname", "/marry nickname "),
+				help("/marry nickname clear", "nickname-clear"),
+				help("/marry requests on", "requests-on"),
+				help("/marry requests off", "requests-off"),
+				help("/marry ceremony start", "ceremony-start"),
+				help("/marry ceremony accept", "ceremony-accept"),
+				help("/marry ceremony cancel", "ceremony-cancel"),
+				help("/marry block <player>", "block", "/marry block "),
+				help("/marry unblock <player>", "unblock", "/marry unblock "),
+				help("/marry blocklist", "blocklist")
+		));
+
+		addConfiguredActionHelp(sender, entries);
+
+		if (sender.hasPermission("marriageplus.priest") || sender.hasPermission("marriageplus.admin")) {
+			entries.add(help("/marry <player1> <player2>", "priest-marry", "/marry "));
+			entries.add(help("/marry divorce <player>", "priest-divorce", "/marry divorce "));
+		}
+
+		if (sender.hasPermission("marriageplus.admin")) {
+			entries.add(help("/family web export", "family-web-export", "/family web export"));
+			entries.add(help("/marry priest <player>", "priest", "/marry priest "));
+			entries.add(help("/marry listenchat", "listenchat"));
+			entries.add(help("/marry reload", "reload"));
+		}
+
+		return entries;
+	}
+
+	private void addConfiguredActionHelp(CommandSender sender, List<HelpEntry> entries) {
+		for (String actionName : configuredActionNames()) {
+			String permission = plugin.configs().actions().getString(actionName + ".permission", "marriageplus.command.actions");
+
+			if (!canUse(sender, permission)) {
+				continue;
+			}
+
+			String displayName = plugin.configs().actions().getString(actionName + ".display-name", actionName);
+			String description = plugin.configs().actions().getString(
+					actionName + ".description",
+					plainLang("help.descriptions.configured-action", Map.of("%action%", displayName))
+			);
+
+			entries.add(new HelpEntry("/marry " + actionName, description, "/marry " + actionName));
+		}
+	}
+
+	private void sendHelpLine(CommandSender sender, HelpEntry entry) {
+		if (!(sender instanceof Player player)) {
+			plugin.langManager().send(sender, "help.line", Map.of(
+					"%command%", entry.command(),
+					"%description%", entry.description()
+			));
+			return;
+		}
+
+		Component commandPart = legacy(plugin.langManager().get("help.clickable-command", Map.of("%command%", entry.command())))
+				.clickEvent(ClickEvent.suggestCommand(entry.suggestedCommand()))
+				.hoverEvent(HoverEvent.showText(legacy(plugin.langManager().get("help.hover", Map.of("%description%", entry.description())))));
+
+		player.sendMessage(commandPart.append(legacy(plugin.langManager().get(
+				"help.clickable-description",
+				Map.of("%description%", entry.description())
+		))));
+	}
+
+	private void sendHelpPages(CommandSender sender, int currentPage, int maxPage) {
+		if (!(sender instanceof Player player)) {
+			StringBuilder text = new StringBuilder(plugin.langManager().get("help.pages-prefix"));
+
+			for (int page = 1; page <= maxPage; page++) {
+				if (page > 1) {
+					text.append(plugin.langManager().get("help.pages-separator"));
+				}
+
+				text.append(plugin.langManager().get(page == currentPage ? "help.page-current" : "help.page-other", Map.of(
+						"%page%", String.valueOf(page)
+				)));
+			}
+
+			sender.sendMessage(text.toString());
+			return;
+		}
+
+		Component selector = legacy(plugin.langManager().get("help.pages-prefix"));
+
+		for (int page = 1; page <= maxPage; page++) {
+			if (page > 1) {
+				selector = selector.append(legacy(plugin.langManager().get("help.pages-separator")));
+			}
+
+			selector = selector.append(legacy(plugin.langManager().get(page == currentPage ? "help.page-current" : "help.page-other", Map.of(
+					"%page%", String.valueOf(page)
+			)))
+					.clickEvent(ClickEvent.runCommand("/marry help " + page))
+					.hoverEvent(HoverEvent.showText(legacy(plugin.langManager().get("help.page-hover", Map.of(
+							"%page%", String.valueOf(page)
+					))))));
+		}
+
+		player.sendMessage(selector);
+	}
+
+	private void sendDivorceButtons(Player player, int seconds) {
+		Component buttons = legacy(plugin.langManager().get("divorce.buttons-prefix"))
+				.append(legacy(plugin.langManager().get("divorce.yes-button"))
+						.clickEvent(ClickEvent.runCommand("/marry divorce yes"))
+						.hoverEvent(HoverEvent.showText(legacy(plugin.langManager().get("divorce.yes-hover")))))
+				.append(legacy(plugin.langManager().get("divorce.buttons-separator")))
+				.append(legacy(plugin.langManager().get("divorce.no-button"))
+						.clickEvent(ClickEvent.runCommand("/marry divorce no"))
+						.hoverEvent(HoverEvent.showText(legacy(plugin.langManager().get("divorce.no-hover")))))
+				.append(legacy(plugin.langManager().get("divorce.buttons-expire", Map.of("%seconds%", String.valueOf(seconds)))));
+
+		player.sendMessage(buttons);
+	}
+
+	private void command(CommandSender sender, String permission, Runnable action) {
+		if (!hasPermission(sender, permission)) {
+			return;
+		}
+
+		action.run();
+	}
+
+	private void playerCommand(CommandSender sender, String permission, PlayerAction action) {
 		if (!hasPermission(sender, permission)) {
 			return;
 		}
@@ -997,10 +1013,6 @@ public class MarryCommand implements TabExecutor {
 		action.run(player);
 	}
 
-	private boolean canUse(CommandSender sender, String permission) {
-		return sender.hasPermission(permission) || sender.hasPermission("marriageplus.admin");
-	}
-
 	private boolean hasPermission(CommandSender sender, String permission) {
 		if (canUse(sender, permission)) {
 			return true;
@@ -1010,10 +1022,54 @@ public class MarryCommand implements TabExecutor {
 		return false;
 	}
 
+	private boolean canUse(CommandSender sender, String permission) {
+		return sender.hasPermission(permission) || sender.hasPermission("marriageplus.admin");
+	}
+
 	private void addIfAllowed(CommandSender sender, List<String> completions, String permission, String completion) {
 		if (canUse(sender, permission)) {
 			completions.add(completion);
 		}
+	}
+
+	private void sendIfOnline(UUID playerId, String langPath) {
+		Player player = Bukkit.getPlayer(playerId);
+
+		if (player != null) {
+			plugin.langManager().send(player, langPath);
+		}
+	}
+
+	private void sendIfOnline(UUID playerId, String langPath, Map<String, String> placeholders) {
+		Player player = Bukkit.getPlayer(playerId);
+
+		if (player != null) {
+			plugin.langManager().send(player, langPath, placeholders);
+		}
+	}
+
+	private boolean isConfiguredAction(String actionName) {
+		return plugin.configs().actions().isConfigurationSection(actionName);
+	}
+
+	private List<String> configuredActionNames() {
+		ConfigurationSection section = plugin.configs().actions();
+
+		if (section == null) {
+			return Collections.emptyList();
+		}
+
+		boolean nsfwEnabled = plugin.getConfig().getBoolean("settings.nsfw-actions-enabled", false);
+
+		return section.getKeys(false).stream()
+				.filter(actionName -> nsfwEnabled || !plugin.configs().actions().getBoolean(actionName + ".nsfw", false))
+				.sorted(String.CASE_INSENSITIVE_ORDER)
+				.toList();
+	}
+
+	private boolean isPlayerName(String value) {
+		String normalized = value.toLowerCase(Locale.ROOT);
+		return !isConfiguredAction(normalized) && !RESERVED_COMMANDS.contains(normalized);
 	}
 
 	private List<String> onlinePlayerNames() {
@@ -1022,34 +1078,77 @@ public class MarryCommand implements TabExecutor {
 				.toList();
 	}
 
-	private List<String> filterCompletions(List<String> options, String input) {
-		String lowerInput = input.toLowerCase(Locale.ROOT);
+	private List<String> filter(List<String> options, String input) {
+		String normalized = input.toLowerCase(Locale.ROOT);
 
 		return options.stream()
-				.filter(option -> option.toLowerCase(Locale.ROOT).startsWith(lowerInput))
+				.filter(option -> option.toLowerCase(Locale.ROOT).startsWith(normalized))
 				.distinct()
 				.sorted(String.CASE_INSENSITIVE_ORDER)
 				.toList();
 	}
 
-	private HelpEntry help(String command, String description, String suggestedCommand) {
-		return new HelpEntry(command, description, suggestedCommand);
+	private HelpEntry help(String command, String key) {
+		return help(command, key, command);
 	}
 
-	private boolean isPlayerName(String value) {
-		String normalizedValue = value.toLowerCase(Locale.ROOT);
+	private HelpEntry help(String command, String key, String suggestedCommand) {
+		return new HelpEntry(command, lang("help.descriptions." + key), suggestedCommand);
+	}
 
-		if (isConfiguredAction(normalizedValue)) {
-			return false;
+	private String applyCouplePlaceholders(String message, Player player, Player partner) {
+		String replaced = message
+				.replace("%player%", player.getName())
+				.replace("%partner%", partner.getName())
+				.replace("%partner_nickname%", socialManager.getPartnerDisplayName(player.getUniqueId(), partner.getUniqueId()));
+
+		return pronounManager.applyPronounPlaceholders(replaced, player, partner);
+	}
+
+	private String joinArgs(String[] args, int startIndex) {
+		if (startIndex >= args.length) {
+			return "";
 		}
 
-		return !Set.of(
-				"help", "me", "accept", "deny", "decline", "divorce", "list", "partner", "status",
-				"tp", "sethome", "home", "homes", "delhome", "chat", "listenchat", "pvpon", "pvpoff",
-				"announce", "compliment", "mail", "level", "xp", "achievements", "gift", "backpack",
-				"anniversary", "pronouns", "title", "nickname", "requests", "block", "unblock", "blocklist",
-				"priest", "reload"
-		).contains(normalizedValue);
+		return String.join(" ", Arrays.copyOfRange(args, startIndex, args.length)).trim();
+	}
+
+	private String random(List<String> values) {
+		return values.get(ThreadLocalRandom.current().nextInt(values.size()));
+	}
+
+	private Particle particle(String particleName) {
+		if (particleName == null || particleName.isBlank()) {
+			return null;
+		}
+
+		try {
+			return Particle.valueOf(particleName.toUpperCase(Locale.ROOT));
+		} catch (IllegalArgumentException exception) {
+			plugin.getLogger().warning(plainLang("logs.invalid-particle", Map.of("%particle%", particleName)));
+			return null;
+		}
+	}
+
+	private Sound sound(String soundName) {
+		if (soundName == null || soundName.isBlank()) {
+			return null;
+		}
+
+		String normalized = soundName.toLowerCase(Locale.ROOT);
+		Sound sound = Registry.SOUNDS.get(NamespacedKey.minecraft(normalized));
+
+		if (sound != null) {
+			return sound;
+		}
+
+		sound = Registry.SOUNDS.get(NamespacedKey.minecraft(normalized.replace('_', '.')));
+
+		if (sound == null) {
+			plugin.getLogger().warning(plainLang("logs.invalid-sound", Map.of("%sound%", soundName)));
+		}
+
+		return sound;
 	}
 
 	private String safeName(OfflinePlayer player) {

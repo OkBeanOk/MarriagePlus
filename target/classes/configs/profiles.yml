@@ -1,0 +1,6 @@
+# MarriagePlus Profile Configuration
+
+default-status: "No status set."
+
+status:
+  max-length: 64

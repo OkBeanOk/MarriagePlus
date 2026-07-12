@@ -1,0 +1,138 @@
+enabled: true
+
+main-menu:
+  title: "&d❤ &8Marriage Menu"
+  size: 54
+  filler:
+    enabled: true
+    material: "BLACK_STAINED_GLASS_PANE"
+    name: " "
+
+items:
+  profile:
+    slot: 10
+    material: "PLAYER_HEAD"
+    name: "&d❤ &fYour Profile"
+    glow: true
+    lore:
+      - "&8Marriage profile"
+      - ""
+      - "&7Partner: &f%partner%"
+      - "&7Partner Online: %partner_online%"
+      - "&7Married For: &f%married_days% day(s)"
+      - ""
+      - "&dClick to view your profile."
+
+  teleport:
+    slot: 12
+    material: "ENDER_PEARL"
+    name: "&b✦ &fTeleport"
+    lore:
+      - "&8Partner teleport"
+      - ""
+      - "&7Partner: &f%partner%"
+      - "&7Online: %partner_online%"
+      - ""
+      - "&bClick to teleport."
+
+  homes:
+    slot: 14
+    material: "OAK_DOOR"
+    name: "&a⌂ &fCouple Homes"
+    lore:
+      - "&8Shared home system"
+      - ""
+      - "&7View and manage your"
+      - "&7couple homes."
+      - ""
+      - "&aClick to view homes."
+
+  backpack:
+    slot: 16
+    material: "CHEST"
+    name: "&6▣ &fPartner Backpack"
+    lore:
+      - "&8Shared storage"
+      - ""
+      - "&7Open your partner's"
+      - "&7shared backpack."
+      - ""
+      - "&6Click to open."
+
+  mail:
+    slot: 28
+    material: "PAPER"
+    name: "&e✉ &fPartner Mail"
+    lore:
+      - "&8Messages"
+      - ""
+      - "&7Read your partner mail."
+      - ""
+      - "&eClick to read."
+
+  love-notes:
+    slot: 30
+    material: "PINK_DYE"
+    name: "&c❤ &fLove Notes"
+    lore:
+      - "&8Romantic messages"
+      - ""
+      - "&7Read your love notes."
+      - ""
+      - "&cClick to view."
+
+  quests:
+    slot: 32
+    material: "WRITABLE_BOOK"
+    name: "&a✦ &fCouple Quests"
+    lore:
+      - "&8Progress together"
+      - ""
+      - "&7Level: &f%marriage_level%"
+      - "&7XP: &f%marriage_xp%&7/&f%required_xp%"
+      - ""
+      - "&aClick to view quests."
+
+  achievements:
+    slot: 34
+    material: "NETHER_STAR"
+    name: "&b★ &fAchievements"
+    glow: true
+    lore:
+      - "&8Couple milestones"
+      - ""
+      - "&7View your unlocked"
+      - "&7achievements."
+      - ""
+      - "&bClick to view."
+
+  anniversary:
+    slot: 40
+    material: "CAKE"
+    name: "&d☄ &fAnniversary"
+    lore:
+      - "&8Marriage date"
+      - ""
+      - "&7Married For: &f%married_days% day(s)"
+      - ""
+      - "&dClick to view."
+
+  ring:
+    slot: 42
+    material: "GOLD_NUGGET"
+    name: "&e◇ &fWedding Ring"
+    lore:
+      - "&8Your special ring"
+      - ""
+      - "&7Replaces your current"
+      - "&7wedding ring safely."
+      - ""
+      - "&eClick to replace."
+
+  close:
+    slot: 49
+    material: "BARRIER"
+    name: "&c✕ &fClose Menu"
+    lore:
+      - ""
+      - "&cClick to close."

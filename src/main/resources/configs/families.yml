@@ -1,0 +1,64 @@
+enabled: true
+
+max-members: 8
+max-name-length: 24
+invite-expire-seconds: 60
+allow-family-chat: true
+default-family-name: "%parent_one% & %parent_two%'s Family"
+
+chat:
+  format: "&d[Family] &f%player%&7: &f%message%"
+
+relationships:
+  enforce-marriage-rules: true
+  allow-incest: false
+
+  block-same-family-marriage: true
+  block-parent-child-marriage: true
+  block-sibling-marriage: true
+  block-ancestor-descendant-marriage: true
+  block-grandparent-grandchild-marriage: true
+  block-aunt-uncle-niece-nephew-marriage: true
+  block-cousin-marriage: false
+  check-historical-family-links: true
+
+  # 0 disables distance-based blocking.
+  # 1 = direct graph edge.
+  # 2 = close relation.
+  # 3+ = wider extended-family blocking.
+  block-related-within-distance: 0
+
+  # BLOCK, WARN, or ALLOW
+  related-marriage-action: "BLOCK"
+
+  admin-bypass: true
+  bypass-permission: "marriageplus.family.bypass"
+
+tree:
+  permanent-adoption-links: true
+  preserve-family-history-on-leave: true
+  preserve-family-history-on-kick: true
+  preserve-children-on-divorce: true
+
+web:
+  enabled: true
+  output-folder: "web/families"
+  file-name: "index.html"
+  json-file-name: "families.json"
+  auto-export-on-save: false
+
+  host: "0.0.0.0"
+  port: 8080
+  route: "/families"
+
+  #for example public-url: "http://123.45.67.89:8080/families"
+  #you must have the port availible for use on your server host
+  public-url: "https://yourserver.com/families"
+
+  page-title: "MarriagePlus Family Trees"
+  server-name: "After Hours"
+  show-uuids: false
+  show-created-date: true
+  show-offline-members: true
+  show-relationship-warnings: true
+  show-historical-members: false

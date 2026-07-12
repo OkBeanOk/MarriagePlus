@@ -1,6 +1,8 @@
 package com.okbeanok.marriagePlus.hooks;
 
 import com.okbeanok.marriagePlus.MarriagePlus;
+import com.okbeanok.marriagePlus.models.Family;
+import com.okbeanok.marriagePlus.models.LoveNote;
 import com.okbeanok.marriagePlus.models.Pronouns;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.Bukkit;
@@ -82,9 +84,29 @@ public class MarriagePlusExpansion extends PlaceholderExpansion {
 			case "requests_enabled" -> String.valueOf(!plugin.requestManager().marriageRequestsDisabled().contains(playerId));
 			case "home_count" -> String.valueOf(plugin.homeManager().getHomeCount(playerId));
 			case "max_homes" -> playerMaxHomes(offlinePlayer);
+
+			case "partner_online" -> String.valueOf(partnerId != null && Bukkit.getPlayer(partnerId) != null);
+			case "partner_uuid" -> partnerId == null ? "" : partnerId.toString();
+			case "player_uuid" -> playerId.toString();
+			case "marriage_title" -> partnerId == null ? "" : plugin.socialManager().getMarriageTitle(playerId, partnerId);
+			case "couple_key" -> partnerId == null ? "" : plugin.marriageManager().coupleKey(playerId, partnerId);
+			case "family_name" -> familyName(playerId);
+			case "in_family" -> String.valueOf(plugin.familyManager().getFamily(playerId) != null);
+			case "family_members" -> String.valueOf(familyMembers(playerId));
+			case "family_size" -> String.valueOf(familyMembers(playerId));
+			case "love_notes_unread" -> String.valueOf(unreadLoveNotes(playerId));
+			case "mail_unread" -> String.valueOf(unreadMail(playerId));
+			case "has_partner_backpack" -> partnerId == null ? "false" : String.valueOf(plugin.backpackManager().backpackAllowed().contains(partnerId));
+			case "pvp_enabled" -> partnerId == null ? "false" : String.valueOf(plugin.marriageManager().pvpEnabledCouples().contains(plugin.marriageManager().coupleKey(playerId, partnerId)));
+			case "chat_enabled" -> String.valueOf(plugin.requestManager().coupleChatToggled().contains(playerId));
+			case "requests_status" -> plugin.requestManager().marriageRequestsDisabled().contains(playerId) ? "Disabled" : "Enabled";
+			case "next_level_xp" -> String.valueOf(plugin.marriageXpManager().getXpRequired(playerId));
+			case "xp_progress" -> plugin.marriageXpManager().getXp(playerId) + "/" + plugin.marriageXpManager().getXpRequired(playerId);
+
 			default -> null;
 		};
 	}
+
 
 	private int achievementsUnlocked(UUID playerId) {
 		UUID partnerId = plugin.marriageManager().getPartnerId(playerId);
@@ -138,5 +160,25 @@ public class MarriagePlusExpansion extends PlaceholderExpansion {
 		}
 
 		return String.valueOf(plugin.getConfig().getInt("homes.max-homes-default", 3));
+	}
+
+	private String familyName(UUID playerId) {
+		Family family = plugin.familyManager().getFamily(playerId);
+		return family == null ? "" : family.name();
+	}
+
+	private int familyMembers(UUID playerId) {
+		Family family = plugin.familyManager().getFamily(playerId);
+		return family == null ? 0 : family.members().size();
+	}
+
+	private long unreadLoveNotes(UUID playerId) {
+		return plugin.loveNoteManager().notes().getOrDefault(playerId, java.util.List.of()).stream()
+				.filter(LoveNote::unread)
+				.count();
+	}
+
+	private int unreadMail(UUID playerId) {
+		return plugin.mailManager().inboxes().getOrDefault(playerId, java.util.List.of()).size();
 	}
 }

@@ -1,6 +1,6 @@
 package com.okbeanok.marriagePlus.listeners;
 
-import com.okbeanok.marriagePlus.managers.BackpackManager;
+import com.okbeanok.marriagePlus.services.backpacks.BackpackManager;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryCloseEvent;

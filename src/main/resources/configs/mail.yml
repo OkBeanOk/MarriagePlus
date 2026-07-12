@@ -1,0 +1,7 @@
+# MarriagePlus Mail Configuration
+
+max-inbox-size: 25
+max-message-length: 180
+notify-on-join: true
+show-read-timestamps: true
+timestamp-format: "yyyy-MM-dd HH:mm"

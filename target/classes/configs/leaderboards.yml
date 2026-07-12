@@ -1,0 +1,25 @@
+# MarriagePlus Leaderboards Configuration
+
+enabled: true
+
+default-type: "level"
+max-results: 10
+
+types:
+  level:
+    enabled: true
+    title: "&d❤ Top Marriage Levels"
+  xp:
+    enabled: true
+    title: "&d❤ Top Marriage XP"
+  longest:
+    enabled: true
+    title: "&d❤ Longest Marriages"
+  achievements:
+    enabled: true
+    title: "&d❤ Top Achievement Couples"
+
+format:
+  header: "&d&m-----&r %title% &d&m-----"
+  line: "&d#%rank% &f%player% &7+ &f%partner% &8- &d%value%"
+  empty: "&cNo leaderboard entries found."

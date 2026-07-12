@@ -1,0 +1,48 @@
+# MarriagePlus Love Notes Configuration
+
+enabled: true
+
+max-notes-per-player: 50
+max-message-length: 256
+notify-on-join: true
+show-timestamps: true
+timestamp-format: "yyyy-MM-dd HH:mm"
+
+grant-xp-on-send: true
+xp-on-send: 5
+
+delivery:
+  # If true, love notes are stored and visible with /marry note list/read/delete.
+  save-digitally: true
+
+  # If true, love notes are also delivered as a physical item.
+  give-item: true
+
+  # PAPER or WRITTEN_BOOK
+  item-type: WRITTEN_BOOK
+
+  paper:
+    material: "PAPER"
+    name: "&d❤ Love Note from %player%"
+    lore:
+      - "&7From: &f%player%"
+      - "&7To: &f%partner%"
+      - "&7Sent: &f%time%"
+      - ""
+      - "&d❤ &f%message%"
+    custom-model-data: 0
+
+  book:
+    title: "Love Note"
+    author: "%player%"
+    display-name: "&d❤ Love Note from %player%"
+    pages:
+      - |
+        Dear %partner%,
+
+        %message%
+
+        ❤ From,
+        %player%
+
+        Sent: %time%

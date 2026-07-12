@@ -1,0 +1,28 @@
+# MarriagePlus Wedding Rings Configuration
+
+enabled: true
+
+material: "GOLD_NUGGET"
+amount: 1
+name: "&d❤ Wedding Ring"
+custom-model-data: 0
+glowing: true
+
+replace-cooldown-seconds: 60
+
+lore:
+  - "&7Owner: &f%player%"
+  - "&7Partner: &f%partner%"
+  - "&7Married For: &f%days% day(s)"
+  - "&7Marriage Level: &f%level%"
+  - "&7Marriage XP: &f%xp%&7/&f%required_xp%"
+  - "&7Status: &f%status%"
+  - ""
+  - "&dA symbol of love and partnership."
+
+give-on-marriage: true
+give-on-ceremony: true
+
+right-click:
+  enabled: true
+  action: "MENU"

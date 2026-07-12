@@ -1,0 +1,26 @@
+# MarriagePlus Partner Notifications Configuration
+
+enabled: true
+
+defaults:
+  join: true
+  leave: true
+  death: true
+  world-change: false
+  mail: true
+  love-notes: true
+  level-up: true
+  quest-claimed: true
+  anniversary-claimed: true
+  ceremony: true
+
+messages:
+  death: "&d❤ Your partner &f%partner% &ddied."
+  world-change: "&d❤ Your partner &f%partner% &dmoved to world &f%world%&d."
+  mail: "&d❤ You received mail from &f%partner%&d."
+  love-notes: "&d❤ You received a love note from &f%partner%&d."
+  level-up: "&d❤ You and &f%partner% &dreached marriage level &f%level%&d!"
+  quest-claimed: "&d❤ &f%partner% &dclaimed &f%quests% &dcouple quest reward(s), earning &f%xp% &dXP!"
+  anniversary-claimed: "&d❤ &f%partner% &dclaimed &f%milestones% &danniversary reward(s), earning &f%xp% &dXP!"
+  ceremony-invite: "&d❤ &f%partner% &dwants to begin a marriage ceremony with you!"
+  ceremony-completed: "&d❤ Your marriage ceremony with &f%partner% &dis complete!"

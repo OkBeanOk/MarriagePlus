@@ -1,9 +1,10 @@
 package com.okbeanok.marriagePlus.listeners;
 
 import com.okbeanok.marriagePlus.MarriagePlus;
-import com.okbeanok.marriagePlus.managers.MarriageManager;
-import com.okbeanok.marriagePlus.managers.MailManager;
-import com.okbeanok.marriagePlus.managers.SocialManager;
+import com.okbeanok.marriagePlus.services.MarriageManager;
+import com.okbeanok.marriagePlus.services.lovenotes.LoveNoteManager;
+import com.okbeanok.marriagePlus.services.mail.MailManager;
+import com.okbeanok.marriagePlus.services.social.SocialManager;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -21,17 +22,20 @@ public class PlayerConnectionListener implements Listener {
 	private final MarriageManager marriageManager;
 	private final SocialManager socialManager;
 	private final MailManager mailManager;
+	private final LoveNoteManager loveNoteManager;
 
 	public PlayerConnectionListener(
 			MarriagePlus plugin,
 			MarriageManager marriageManager,
 			SocialManager socialManager,
-			MailManager mailManager
+			MailManager mailManager,
+			LoveNoteManager loveNoteManager
 	) {
 		this.plugin = plugin;
 		this.marriageManager = marriageManager;
 		this.socialManager = socialManager;
 		this.mailManager = mailManager;
+		this.loveNoteManager = loveNoteManager;
 	}
 
 	@EventHandler
@@ -58,6 +62,15 @@ public class PlayerConnectionListener implements Listener {
 					+ socialManager.getPartnerDisplayName(partner.getUniqueId(), player.getUniqueId())
 					+ " &djoined the server."));
 		}
+
+		Bukkit.getScheduler().runTaskLater(plugin, () -> {
+			if (!player.isOnline()) {
+				return;
+			}
+
+			mailManager.notifyUnreadMail(player);
+			loveNoteManager.notifyUnreadNotes(player);
+		}, 40L);
 	}
 
 	@EventHandler

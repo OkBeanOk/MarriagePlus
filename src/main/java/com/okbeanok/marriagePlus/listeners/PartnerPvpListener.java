@@ -1,6 +1,6 @@
 package com.okbeanok.marriagePlus.listeners;
 
-import com.okbeanok.marriagePlus.managers.MarriageManager;
+import com.okbeanok.marriagePlus.services.MarriageManager;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;

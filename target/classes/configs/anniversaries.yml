@@ -1,0 +1,86 @@
+# MarriagePlus Anniversary Rewards Configuration
+
+enabled: true
+
+# If true, both partners receive configured item rewards when either partner claims.
+# If false, only the claiming player receives item rewards.
+reward-both-partners: true
+
+# If true, both partners receive console commands.
+# Commands using %player% and %partner% will run once for each direction.
+reward-commands-for-both-partners: true
+
+milestones:
+  1:
+    name: "First Day Together"
+    relationship-xp: 50
+    commands: []
+    items:
+      - material: "POPPY"
+        amount: 1
+        name: "&dFirst Day Flower"
+        lore:
+          - "&7Celebrating your first day"
+          - "&7married to &f%partner%&7."
+
+  7:
+    name: "One Week Together"
+    relationship-xp: 150
+    commands:
+      - "give %player% emerald 2"
+    items:
+      - material: "CLOCK"
+        amount: 1
+        name: "&eOne Week Anniversary"
+        lore:
+          - "&7Seven days together."
+          - "&d❤ &f%player% &7and &f%partner%"
+
+  30:
+    name: "One Month Together"
+    relationship-xp: 500
+    commands:
+      - "give %player% diamond 2"
+    items:
+      - material: "AMETHYST_SHARD"
+        amount: 1
+        name: "&dOne Month Anniversary"
+        lore:
+          - "&7Thirty days of marriage."
+          - "&7A beautiful milestone."
+
+  100:
+    name: "100 Days Together"
+    relationship-xp: 1500
+    commands:
+      - "give %player% emerald 8"
+    items:
+      - material: "NETHER_STAR"
+        amount: 1
+        name: "&b100 Day Anniversary"
+        lore:
+          - "&7100 days together."
+          - "&7A legendary marriage."
+        enchants:
+          unbreaking: 1
+        hide-enchants: true
+        custom-model-data: 100
+
+  365:
+    name: "One Year Together"
+    relationship-xp: 5000
+    commands:
+      - "give %player% diamond 10"
+      - "give %player% emerald 10"
+    items:
+      - material: "NETHER_STAR"
+        amount: 1
+        name: "&6One Year Together"
+        lore:
+          - "&7A legendary reward for"
+          - "&7365 days of marriage."
+          - "&d❤ &f%player% &7and &f%partner%"
+        enchants:
+          unbreaking: 1
+        hide-enchants: true
+        custom-model-data: 365

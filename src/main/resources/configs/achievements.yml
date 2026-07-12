@@ -1,0 +1,90 @@
+# MarriagePlus Achievements Configuration
+
+broadcast-unlocks: true
+unlock-broadcast: "&d❤ &f%player% &7& &f%partner% &dunlocked achievement: &f%achievement%&d!"
+
+definitions:
+  first_kiss:
+    name: "First Kiss"
+    description: "Use /marry kiss for the first time."
+    trigger: "action"
+    action: "kiss"
+
+  first_hug:
+    name: "First Hug"
+    description: "Hug your partner for the first time."
+    trigger: "action"
+    action: "hug"
+
+  first_gift:
+    name: "First Gift"
+    description: "Send your partner your first gift."
+    trigger: "gift"
+
+  first_couple_chat:
+    name: "First Couple Chat"
+    description: "Send your first private couple chat message."
+    trigger: "chat"
+
+  home_sweet_home:
+    name: "Home Sweet Home"
+    description: "Set your first couple home."
+    trigger: "home"
+
+  backpack_buddies:
+    name: "Backpack Buddies"
+    description: "Both partners allow backpack access."
+    trigger: "backpack_buddies"
+
+  anniversary_7:
+    name: "7 Day Anniversary"
+    description: "Stay married for 7 days."
+    trigger: "anniversary"
+    days: 7
+
+  anniversary_30:
+    name: "30 Day Anniversary"
+    description: "Stay married for 30 days."
+    trigger: "anniversary"
+    days: 30
+
+  anniversary_100:
+    name: "100 Day Anniversary"
+    description: "Stay married for 100 days."
+    trigger: "anniversary"
+    days: 100
+
+  anniversary_365:
+    name: "One Year Together"
+    description: "Stay married for 365 days."
+    trigger: "anniversary"
+    days: 365
+
+rewards:
+  first_kiss:
+    commands: []
+    items:
+      - material: "PINK_TULIP"
+        amount: 1
+        name: "&dFirst Kiss Flower"
+        lore:
+          - "&7Awarded to &f%player%"
+          - "&7for sharing a first kiss with &f%partner%&7."
+        enchants:
+          unbreaking: 1
+        hide-enchants: true
+
+  first_gift:
+    commands:
+      - "give %player% diamond 1"
+      - "give %partner% diamond 1"
+    items:
+      - material: "CHEST"
+        amount: 1
+        name: "&6Gift Giver's Keepsake"
+        lore:
+          - "&7A keepsake for giving your"
+          - "&7partner their first gift."
+        enchants:
+          unbreaking: 1
+        hide-enchants: true

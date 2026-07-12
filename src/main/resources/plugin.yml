@@ -2,6 +2,7 @@ name: MarriagePlus
 version: '${version}'
 softdepend:
   - PlaceholderAPI
+  - LuckPerms
 main: com.okbeanok.marriagePlus.MarriagePlus
 api-version: '1.21'
 load: POSTWORLD
@@ -13,7 +14,14 @@ commands:
     aliases:
       - marriage
       - spouse
-
+      -
+  family:
+    description: Family tree and adoption command
+    usage: /family
+    aliases:
+      - families
+      - fam
+      - f
 permissions:
   marriageplus.admin:
     description: Allows admin marriage commands
@@ -21,6 +29,30 @@ permissions:
 
   marriageplus.priest:
     description: Allows priest marriage commands
+    default: op
+
+  marriageplus.command.ring:
+    description: Allows wedding ring commands
+    default: true
+
+  marriageplus.command.menu:
+    description: Allows opening the marriage GUI menu
+    default: true
+
+  marriageplus.command.ceremony:
+    description: Allows marriage ceremony commands
+    default: true
+
+  marriageplus.command.leaderboard:
+    description: Allows viewing couple leaderboards
+    default: true
+
+  marriageplus.command.family:
+    description: Allows use of family and adoption commands.
+    default: true
+
+  marriageplus.family.bypass:
+    description: Allows bypassing family relationship marriage restrictions
     default: op
 
   marriageplus.command.me:
@@ -37,6 +69,10 @@ permissions:
 
   marriageplus.command.partner:
     description: Allows viewing your partner
+    default: true
+
+  marriageplus.command.lovenotes:
+    description: Allows love note commands
     default: true
 
   marriageplus.command.status:
@@ -105,4 +141,16 @@ permissions:
     
   marriageplus.command.level:
     description: Allows viewing marriage XP and levels
+    default: true
+
+  marriageplus.buffs:
+    description: Allows receiving partner buffs
+    default: true
+
+  marriageplus.command.profile:
+    description: Allows viewing marriage profiles
+    default: true
+
+  marriageplus.command.quests:
+    description: Allows viewing and claiming couple quests
     default: true

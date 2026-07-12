@@ -1,0 +1,30 @@
+# MarriagePlus Ceremony Configuration
+
+enabled: true
+
+invite-expire-seconds: 120
+required-radius: 12.0
+
+# Prevent players from repeatedly starting ceremonies.
+cooldown-seconds: 86400
+
+broadcast: true
+broadcast-message: "&d❤ &f%player% &7and &f%partner% &dcelebrated their marriage ceremony!"
+
+# XP is only awarded once per couple.
+reward-xp: 250
+reward-once-per-couple: true
+give-rings: true
+
+effects:
+  enabled: true
+  particle: "HEART"
+  particle-count: 35
+  sound: "ENTITY_FIREWORK_ROCKET_TWINKLE"
+  fireworks: true
+
+messages:
+  vows:
+    - "&d%player% &7promises to always stand beside &f%partner%&7."
+    - "&d%partner% &7promises to always support &f%player%&7."
+    - "&dTogether, they begin another chapter of their story.

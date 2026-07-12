@@ -1,0 +1,14 @@
+# MarriagePlus Storage Configuration
+
+# YAML,MYSQL or SQLITE
+type: YAML
+
+mysql:
+  host: "localhost"
+  port: 3306
+  database: "marriageplus"
+  username: "root"
+  password: "password"
+  use-ssl: false
+  table-prefix: "marriageplus_"
+

@@ -1,0 +1,27 @@
+# MarriagePlus Couple Quests Configuration
+
+enabled: true
+nearby-radius: 32.0
+nearby-check-seconds: 60
+
+definitions:
+  mine_together:
+    name: "Mine Together"
+    description: "Mine blocks while near your partner."
+    type: "MINE_BLOCKS_NEAR_PARTNER"
+    amount: 150
+    reward-xp: 75
+
+  mob_duo:
+    name: "Mob Duo"
+    description: "Kill mobs while near your partner."
+    type: "KILL_MOBS_NEAR_PARTNER"
+    amount: 25
+    reward-xp: 100
+
+  quality_time:
+    name: "Quality Time"
+    description: "Spend time near your partner."
+    type: "NEAR_PARTNER_MINUTES"
+    amount: 15
+    reward-xp: 60

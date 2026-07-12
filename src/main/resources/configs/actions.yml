@@ -1,0 +1,128 @@
+# MarriagePlus Actions Configuration
+
+kiss:
+  display-name: "kiss"
+  description: "Kiss your partner"
+  particle: "HEART"
+  sound: "entity.player.levelup"
+  broadcast-messages:
+    - "&d❤ &f%player%&d kissed &f%partner%&d! ❤"
+    - "&f%player%&d gives &f%partner%&d a sweet kiss."
+    - "&f%player%&d and &f%partner%&d share a romantic kiss."
+    - "&f%player%&d blows a kiss to &f%partner%&d."
+    - "&f%player%&d kissed &f%partner%&d and made %partner_object% smile."
+
+hug:
+  display-name: "hug"
+  description: "Hug your partner"
+  particle: "HAPPY_VILLAGER"
+  sound: "entity.villager.yes"
+  broadcast-messages:
+    - "&d🤗 &f%player%&d hugged &f%partner%&d! 🤗"
+    - "&f%player%&d gives &f%partner%&d a warm hug."
+    - "&f%player%&d wraps their arms around &f%partner%&d."
+    - "&f%player%&d gives &f%partner%&d the biggest hug ever."
+    - "&f%partner%&d smiles as &f%player%&d hugs &f%partner_object%&d."
+
+cuddle:
+  display-name: "cuddle"
+  description: "Cuddle your partner"
+  particle: "HEART"
+  sound: "entity.cat.purr"
+  broadcast-messages:
+    - "&d❤ &f%player%&d cuddled with &f%partner%&d! ❤"
+    - "&f%player%&d and &f%partner%&d cuddle together."
+    - "&f%player%&d snuggles close to &f%partner%&d."
+    - "&f%player%&d and &f%partner%&d are having a cozy moment."
+    - "&f%player%&d cuddled &f%partner%&d because &f%player_subject%&d loves &f%partner_object%&d."
+
+highfive:
+  display-name: "high-five"
+  description: "High-five your partner"
+  particle: "CRIT"
+  sound: "entity.player.attack.strong"
+  broadcast-messages:
+    - "&f%player%&e high-fived &f%partner%&e!"
+    - "&f%player%&e and &f%partner%&e did an epic high-five!"
+    - "&f%player%&e gives &f%partner%&e a happy high-five!"
+    - "&f%player%&e and &f%partner%&e celebrate together!"
+
+boop:
+  display-name: "boop"
+  description: "Boop your partner"
+  particle: "HAPPY_VILLAGER"
+  sound: "entity.axolotl.splash"
+  broadcast-messages:
+    - "&d&f%player%&d booped &f%partner%&d!"
+    - "&d&f%player%&d gave &f%partner%&d a tiny little boop."
+    - "&d&f%partner%&d was lovingly booped by &f%player%&d."
+
+dance:
+  display-name: "dance"
+  description: "Dance with your partner"
+  particle: "NOTE"
+  sound: "block.note_block.pling"
+  broadcast-messages:
+    - "&f%player%&d and &f%partner%&d danced together!"
+    - "&f%player%&d asked &f%partner%&d for a dance."
+    - "&f%player%&d and &f%partner%&d are dancing like nobody is watching."
+
+snuggle:
+  display-name: "snuggle"
+  description: "Snuggle your partner"
+  particle: "HEART"
+  sound: "entity.cat.purr"
+  broadcast-messages:
+    - "&f%player%&d snuggled up with &f%partner%&d."
+    - "&f%player%&d and &f%partner%&d are having a cozy snuggle."
+    - "&f%partner%&d smiles as &f%player%&d snuggles close."
+
+holdhands:
+  display-name: "hold hands"
+  description: "Hold hands with your partner"
+  particle: "HEART"
+  sound: "entity.allay.ambient_with_item"
+  broadcast-messages:
+    - "&f%player%&d held hands with &f%partner%&d."
+    - "&f%player%&d and &f%partner%&d walked together hand in hand."
+    - "&f%player%&d gently held &f%partner%&d's hand."
+
+foreheadkiss:
+  display-name: "forehead kiss"
+  description: "Give your partner a forehead kiss"
+  particle: "HEART"
+  sound: "entity.cat.purr"
+  broadcast-messages:
+    - "&d&f%player%&d gave &f%partner%&d a gentle forehead kiss."
+    - "&d&f%partner%&d blushed after &f%player%&d's forehead kiss."
+    - "&d&f%player%&d kissed &f%partner%&d on the forehead."
+
+stargaze:
+  display-name: "stargaze"
+  description: "Stargaze with your partner"
+  particle: "END_ROD"
+  sound: "block.amethyst_block.chime"
+  broadcast-messages:
+    - "&f%player%&b and &f%partner%&b looked up at the stars together."
+    - "&f%player%&b spent a quiet stargazing moment with &f%partner%&b."
+    - "&f%player%&b and &f%partner%&b found shapes in the stars."
+
+cheer:
+  display-name: "cheer"
+  description: "Cheer for your partner"
+  particle: "FIREWORK"
+  sound: "entity.firework_rocket.launch"
+  broadcast-messages:
+    - "&f%player%&e cheered for &f%partner%&e!"
+    - "&f%player%&e is &f%partner%&e's biggest fan!"
+    - "&f%player%&e hyped &f%partner%&e up!"
+
+fuck:
+  nsfw: true
+  particle: "HEART"
+  sound: "entity.player.levelup"
+  permission: "marriageplus.action.nsfw" #you can set up per-action permission requirements remove if you want to disable
+  broadcast-messages:
+    - "&d&f%player%&d and &f%partner%&d shared an adult private moment."
+    - "&d&f%player%&d and &f%partner%&d had an adult interaction."
+    - "&d&f%player%&d and &f%partner%&d spent some private time together."
