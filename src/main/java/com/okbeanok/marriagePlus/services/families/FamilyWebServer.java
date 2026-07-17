@@ -73,7 +73,9 @@ public class FamilyWebServer {
 		String relativePath = requestPath.substring(route.length());
 
 		if (relativePath.isBlank() || relativePath.equals("/")) {
-			relativePath = "/" + plugin.configs().families().getString("web.file-name", "index.html");
+			relativePath = plugin.configs().families().getString("web.file-name", "index.html");
+		} else {
+			relativePath = relativePath.replaceFirst("^/+", "");
 		}
 
 		File requestedFile = new File(webFolder, relativePath).getCanonicalFile();

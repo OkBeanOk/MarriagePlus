@@ -3,6 +3,9 @@ package com.okbeanok.marriagePlus.services.homes;
 import com.okbeanok.marriagePlus.MarriagePlus;
 import com.okbeanok.marriagePlus.services.CooldownManager;
 import com.okbeanok.marriagePlus.services.MarriageManager;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
@@ -10,6 +13,8 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+
+import static com.okbeanok.marriagePlus.utils.TextUtils.legacy;
 
 public class HomeManager {
 
@@ -20,6 +25,8 @@ public class HomeManager {
 	private final CooldownManager cooldownManager;
 
 	private final Map<UUID, Map<String, Location>> homes = new HashMap<>();
+	private final Map<UUID, String> defaultHomes = new HashMap<>();
+	private final Map<UUID, PendingHomeDelete> deleteConfirmations = new HashMap<>();
 
 	public HomeManager(MarriagePlus plugin, MarriageManager marriageManager, CooldownManager cooldownManager) {
 		this.plugin = plugin;
@@ -29,6 +36,10 @@ public class HomeManager {
 
 	public Map<UUID, Map<String, Location>> homes() {
 		return homes;
+	}
+
+	public Map<UUID, String> defaultHomes() {
+		return defaultHomes;
 	}
 
 	public void setHome(Player player, String[] args) {
@@ -79,7 +90,7 @@ public class HomeManager {
 			return;
 		}
 
-		String homeName = args.length >= 2 ? normalizeHomeName(args[1]) : DEFAULT_HOME_NAME;
+		String homeName = args.length >= 2 ? normalizeHomeName(args[1]) : getDefaultHomeName(player.getUniqueId());
 		Location home = getHome(player.getUniqueId(), homeName);
 
 		if (home == null) {
@@ -113,15 +124,33 @@ public class HomeManager {
 		}
 
 		for (String homeName : playerHomes.keySet().stream().sorted(String.CASE_INSENSITIVE_ORDER).toList()) {
-			plugin.langManager().send(player, "home.line", Map.of(
-					"%home%", homeName
-			));
+			sendClickableHomeLine(player, homeName);
 		}
 
 		plugin.langManager().send(player, "home.count", Map.of(
 				"%homes%", String.valueOf(playerHomes.size()),
 				"%max%", String.valueOf(getMaxHomes(player))
 		));
+	}
+
+	private void sendClickableHomeLine(Player player, String homeName) {
+		Component homeLine = legacy(plugin.langManager().get("home.clickable-line-prefix"))
+				.append(legacy(plugin.langManager().get("home.clickable-name", Map.of(
+						"%home%", homeName
+				)))
+						.clickEvent(ClickEvent.runCommand("/marry home " + homeName))
+						.hoverEvent(HoverEvent.showText(legacy(plugin.langManager().get("home.clickable-hover", Map.of(
+								"%home%", homeName
+						))))))
+				.append(legacy(plugin.langManager().get("home.clickable-delete", Map.of(
+						"%home%", homeName
+				)))
+						.clickEvent(ClickEvent.suggestCommand("/marry delhome " + homeName))
+						.hoverEvent(HoverEvent.showText(legacy(plugin.langManager().get("home.clickable-delete-hover", Map.of(
+								"%home%", homeName
+						))))));
+
+		player.sendMessage(homeLine);
 	}
 
 	public void deleteHome(Player player, String[] args) {
@@ -146,6 +175,34 @@ public class HomeManager {
 			return;
 		}
 
+		if (args.length < 3 || !args[2].equalsIgnoreCase("confirm")) {
+			int seconds = plugin.getConfig().getInt("homes.delete-confirm-seconds", 30);
+			deleteConfirmations.put(player.getUniqueId(), new PendingHomeDelete(
+					homeName,
+					System.currentTimeMillis() + seconds * 1000L
+			));
+
+			plugin.langManager().send(player, "home.delete-confirm", Map.of(
+					"%home%", homeName,
+					"%seconds%", String.valueOf(seconds)
+			));
+			return;
+		}
+
+		PendingHomeDelete pendingDelete = deleteConfirmations.get(player.getUniqueId());
+
+		if (pendingDelete == null || !pendingDelete.homeName().equalsIgnoreCase(homeName)) {
+			plugin.langManager().send(player, "home.delete-confirm-missing");
+			return;
+		}
+
+		if (System.currentTimeMillis() > pendingDelete.expiresAt()) {
+			deleteConfirmations.remove(player.getUniqueId());
+			plugin.langManager().send(player, "home.delete-confirm-expired");
+			return;
+		}
+
+		deleteConfirmations.remove(player.getUniqueId());
 		removeHome(player.getUniqueId(), homeName);
 		removeHome(partnerId, homeName);
 
@@ -155,6 +212,106 @@ public class HomeManager {
 				"%home%", homeName
 		));
 	}
+
+	public void renameHome(Player player, String[] args) {
+		UUID partnerId = marriageManager.getPartnerId(player.getUniqueId());
+
+		if (partnerId == null) {
+			plugin.langManager().send(player, "marriage.not-married");
+			return;
+		}
+
+		if (args.length < 3) {
+			plugin.langManager().send(player, "home.rename-usage");
+			return;
+		}
+
+		String oldName = normalizeHomeName(args[1]);
+		String newName = normalizeHomeName(args[2]);
+
+		if (!hasHome(player.getUniqueId(), oldName)) {
+			plugin.langManager().send(player, "home.not-set", Map.of(
+					"%home%", oldName
+			));
+			return;
+		}
+
+		if (!isValidHomeName(newName)) {
+			plugin.langManager().send(player, "home.invalid-name");
+			return;
+		}
+
+		int maxNameLength = plugin.getConfig().getInt("homes.max-name-length", 16);
+
+		if (newName.length() > maxNameLength) {
+			plugin.langManager().send(player, "home.name-too-long", Map.of(
+					"%max%", String.valueOf(maxNameLength)
+			));
+			return;
+		}
+
+		if (oldName.equalsIgnoreCase(newName)) {
+			plugin.langManager().send(player, "home.rename-same-name");
+			return;
+		}
+
+		if (hasHome(player.getUniqueId(), newName)) {
+			plugin.langManager().send(player, "home.already-set", Map.of(
+					"%home%", newName
+			));
+			return;
+		}
+
+		Location location = getHome(player.getUniqueId(), oldName);
+
+		removeHome(player.getUniqueId(), oldName);
+		removeHome(partnerId, oldName);
+		setHomeFor(player.getUniqueId(), newName, location);
+		setHomeFor(partnerId, newName, location);
+
+		updateDefaultHomeAfterRename(player.getUniqueId(), oldName, newName);
+		updateDefaultHomeAfterRename(partnerId, oldName, newName);
+
+		plugin.dataManager().saveData();
+
+		plugin.langManager().send(player, "home.renamed", Map.of(
+				"%old_home%", oldName,
+				"%new_home%", newName
+		));
+	}
+
+	public void setDefaultHome(Player player, String[] args) {
+		UUID partnerId = marriageManager.getPartnerId(player.getUniqueId());
+
+		if (partnerId == null) {
+			plugin.langManager().send(player, "marriage.not-married");
+			return;
+		}
+
+		if (args.length < 2) {
+			plugin.langManager().send(player, "home.default-usage");
+			return;
+		}
+
+		String homeName = normalizeHomeName(args[1]);
+
+		if (!hasHome(player.getUniqueId(), homeName)) {
+			plugin.langManager().send(player, "home.not-set", Map.of(
+					"%home%", homeName
+			));
+			return;
+		}
+
+		defaultHomes.put(player.getUniqueId(), homeName);
+		defaultHomes.put(partnerId, homeName);
+
+		plugin.dataManager().saveData();
+
+		plugin.langManager().send(player, "home.default-set", Map.of(
+				"%home%", homeName
+		));
+	}
+
 
 	public void setHomeFor(UUID playerId, String homeName, Location location) {
 		homes.computeIfAbsent(playerId, ignored -> new HashMap<>()).put(normalizeHomeName(homeName), location);
@@ -167,7 +324,12 @@ public class HomeManager {
 			return;
 		}
 
-		playerHomes.remove(normalizeHomeName(homeName));
+		String normalizedHomeName = normalizeHomeName(homeName);
+		playerHomes.remove(normalizedHomeName);
+
+		if (getDefaultHomeName(playerId).equalsIgnoreCase(normalizedHomeName)) {
+			defaultHomes.remove(playerId);
+		}
 
 		if (playerHomes.isEmpty()) {
 			homes.remove(playerId);
@@ -219,7 +381,24 @@ public class HomeManager {
 		return input.toLowerCase(Locale.ROOT);
 	}
 
+	public String getDefaultHomeName(UUID playerId) {
+		return defaultHomes.getOrDefault(playerId, DEFAULT_HOME_NAME);
+	}
+
+	public void setDefaultHomeFor(UUID playerId, String homeName) {
+		defaultHomes.put(playerId, normalizeHomeName(homeName));
+	}
+
 	private boolean isValidHomeName(String homeName) {
 		return homeName.matches("[a-z0-9_-]+");
+	}
+
+	private void updateDefaultHomeAfterRename(UUID playerId, String oldName, String newName) {
+		if (getDefaultHomeName(playerId).equalsIgnoreCase(oldName)) {
+			defaultHomes.put(playerId, normalizeHomeName(newName));
+		}
+	}
+
+	private record PendingHomeDelete(String homeName, long expiresAt) {
 	}
 }

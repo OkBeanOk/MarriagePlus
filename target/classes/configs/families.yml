@@ -6,6 +6,13 @@ invite-expire-seconds: 60
 allow-family-chat: true
 default-family-name: "%parent_one% & %parent_two%'s Family"
 
+adoption:
+  # If true, family members besides the original family parents can adopt children into their branch.
+  allow-member-adoption: true
+
+  # If true, adopters must be married before they can adopt.
+  require-married-parent: false
+
 chat:
   format: "&d[Family] &f%player%&7: &f%message%"
 

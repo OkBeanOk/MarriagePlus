@@ -108,6 +108,7 @@ public class DataManager {
 					dataConfig.set("marriages", new HashMap<>());
 					dataConfig.set("marriage-dates", new HashMap<>());
 					dataConfig.set("homes", new HashMap<>());
+					dataConfig.set("default-homes", new HashMap<>());
 					dataConfig.set("backpack-allowed", new ArrayList<>());
 					dataConfig.set("pvp-enabled-couples", new ArrayList<>());
 					dataConfig.set("backpacks", new HashMap<>());
@@ -322,6 +323,7 @@ public class DataManager {
 	public void saveData() {
 		dataConfig.set("marriages", null);
 		dataConfig.set("homes", null);
+		dataConfig.set("default-homes", null);
 		dataConfig.set("backpack-allowed", null);
 		dataConfig.set("pvp-enabled-couples", null);
 		dataConfig.set("pronouns", null);
@@ -343,6 +345,7 @@ public class DataManager {
 
 		saveMarriages();
 		saveHomes();
+		saveDefaultHomes();
 		saveBackpackAllowed();
 		savePvpEnabledCouples();
 		savePronouns();
@@ -523,6 +526,7 @@ public class DataManager {
 	public void loadData() {
 		marriageManager.partners().clear();
 		homeManager.homes().clear();
+		homeManager.defaultHomes().clear();
 		backpackManager.backpackAllowed().clear();
 		marriageManager.pvpEnabledCouples().clear();
 		pronounManager.pronouns().clear();
@@ -547,6 +551,7 @@ public class DataManager {
 
 		loadMarriages();
 		loadHomes();
+		loadDefaultHomes();
 		loadBackpackAllowed();
 		loadPvpEnabledCouples();
 		loadPronouns();
@@ -591,6 +596,35 @@ public class DataManager {
 			dataConfig.set("anniversary-claimed-milestones." + entry.getKey(), entry.getValue().stream()
 					.sorted()
 					.toList());
+		}
+	}
+
+	private void loadDefaultHomes() {
+		ConfigurationSection defaultHomesSection = dataConfig.getConfigurationSection("default-homes");
+
+		if (defaultHomesSection == null) {
+			return;
+		}
+
+		for (String playerKey : defaultHomesSection.getKeys(false)) {
+			try {
+				UUID playerId = UUID.fromString(playerKey);
+				String homeName = defaultHomesSection.getString(playerKey, HomeManager.DEFAULT_HOME_NAME);
+
+				if (homeName != null && !homeName.isBlank()) {
+					homeManager.setDefaultHomeFor(playerId, homeName);
+				}
+			} catch (IllegalArgumentException exception) {
+				plugin.getLogger().warning("Invalid default home entry in data.yml: " + playerKey);
+			}
+		}
+	}
+
+	private void saveDefaultHomes() {
+		dataConfig.set("default-homes", new HashMap<String, Object>());
+
+		for (Map.Entry<UUID, String> entry : homeManager.defaultHomes().entrySet()) {
+			dataConfig.set("default-homes." + entry.getKey(), entry.getValue());
 		}
 	}
 
@@ -933,9 +967,21 @@ public class DataManager {
 
 
 	public ItemStack[] loadBackpackContents(UUID owner) {
-		ItemStack[] items = new ItemStack[27];
-
 		java.util.List<?> contents = dataConfig.getList("backpacks." + owner + ".contents");
+		int size = plugin.configs().backpack().getInt("size", 27);
+		size = Math.max(9, Math.min(54, size));
+
+		if (size % 9 != 0) {
+			size = (size / 9) * 9;
+		}
+
+		size = Math.max(9, size);
+
+		if (contents != null && contents.size() > size) {
+			size = Math.min(54, ((contents.size() + 8) / 9) * 9);
+		}
+
+		ItemStack[] items = new ItemStack[size];
 
 		if (contents == null) {
 			return items;
@@ -951,6 +997,7 @@ public class DataManager {
 
 		return items;
 	}
+
 
 	private void saveFamilies() {
 		dataConfig.set("families", new HashMap<String, Object>());

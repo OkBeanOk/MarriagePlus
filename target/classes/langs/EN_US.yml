@@ -51,6 +51,16 @@ ceremony:
   not-near: "&cYou must be near your partner to complete the ceremony."
   cancelled: "&aCeremony invite cancelled."
   completed: "&d❤ Your marriage ceremony is complete!"
+  cooldown: "&cYou must wait &f%time% &cbefore starting another ceremony."
+  reward-already-claimed: "&eThis couple has already received the ceremony XP reward."
+  already-pending: "&cThere is already a pending ceremony invite for this couple."
+  buttons-prefix: "&7Click: "
+  accept-button: "&a[Accept]"
+  cancel-button: "&c[Cancel]"
+  buttons-separator: " &8| "
+  buttons-expire: " &8| &7Expires in &f%seconds%s"
+  accept-hover: "&aAccept the ceremony invite"
+  cancel-hover: "&cCancel the ceremony invite"
 
 leaderboards:
   disabled: "&cCouple leaderboards are disabled."
@@ -82,7 +92,6 @@ help:
     family-kick: "Removes a member from your family"
     family-rename: "Renames your family"
     family-chat: "Sends a private family chat message"
-    family-web-export: "Exports the family web page"
     leaderboard: "Shows the default couple leaderboard"
     leaderboard-level: "Shows top marriage levels"
     leaderboard-xp: "Shows top marriage XP"
@@ -205,7 +214,7 @@ status:
   your-backpack-access: "&7Your Backpack Access: %status%"
   partner-backpack-access: "&7Partner Backpack Access: %status%"
   marriage-chat-toggle: "&7Marriage Chat Toggle: %status%"
-  
+
   values:
     on: "&aOn"
     off: "&cOff"
@@ -250,37 +259,42 @@ requests:
   buttons-expire: " &8| &7Expires in &f%seconds%s"
 
 family:
+
   disabled: "&cFamilies are disabled."
   usage: "&cUsage: /marry family <invite|adopt|accept|leave|kick|rename|chat|web>"
   usage-invite: "&cUsage: /marry family invite <player>"
   usage-kick: "&cUsage: /marry family kick <player>"
   usage-rename: "&cUsage: /marry family rename <name>"
   usage-chat: "&cUsage: /marry family chat <message>"
-  usage-web: "&cUsage: /marry family web export"
 
   cannot-invite-self: "&cYou cannot invite yourself to your own family."
   invite-sent: "&aFamily invite sent to &f%player%&a."
   invite-received: "&d%player% invited you to join &f%family%&d. Use &f/marry family accept &dto join."
   invite-expired: "&cThat family invite has expired."
   no-invite: "&cYou do not have a pending family invite."
+  invite-denied: "&cYou denied the family invite."
+  invite-denied-sender: "&c%player% denied your family invite."
 
   already-in-family: "&cThat player is already in a family."
   full: "&cThat family is full."
   not-in-family: "&cYou are not in a family."
   not-family-member: "&cThat player is not in your family."
   not-parent: "&cOnly family parents can do that."
+  adoption-requires-marriage: "&cYou must be married to adopt into the family."
   parent-cannot-leave: "&cParents cannot leave their own family."
   cannot-kick-parent: "&cYou cannot kick another parent from the family."
 
   joined: "&aYou joined &f%family%&a."
+  member-joined: "&d%player% &ajoined the family."
   left: "&aYou left your family."
+  member-left: "&d%player% &eleft the family."
   renamed: "&aFamily renamed to &f%family%&a."
+  family-renamed: "&d%player% &erenamed the family to &f%family%&e."
   kicked: "&aRemoved &f%player% &afrom the family."
-  name-too-long: "&cThat family name is too long. Max length: &f%max%&c."
-  chat-disabled: "&cFamily chat is disabled."
+  member-kicked: "&d%player% &cwas removed from the family."
+  you-were-kicked: "&cYou were removed from &f%family%&c."
 
   not-found: "&cThat family could not be found."
-  web-exported: "&aFamily web page exported."
 
   marriage-blocked-related: "&cYou cannot marry this player because they are related to you by family tree rules."
   marriage-warning-related: "&eWarning: this player is related to you according to the family tree, but this server allows it."

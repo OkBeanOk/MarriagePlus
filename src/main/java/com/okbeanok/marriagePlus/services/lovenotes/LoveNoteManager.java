@@ -4,6 +4,9 @@ import com.okbeanok.marriagePlus.MarriagePlus;
 import com.okbeanok.marriagePlus.models.LoveNote;
 import com.okbeanok.marriagePlus.services.MarriageManager;
 import com.okbeanok.marriagePlus.services.xp.MarriageXpManager;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
@@ -15,6 +18,9 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
 import org.bukkit.inventory.meta.ItemMeta;
 
+import static com.okbeanok.marriagePlus.utils.TextUtils.color;
+import static com.okbeanok.marriagePlus.utils.TextUtils.legacy;
+import java.awt.*;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,6 +38,7 @@ public class LoveNoteManager {
 	private static final String LIST_TITLE = "§d❤ Love Notes";
 	private static final String DETAIL_TITLE = "§d❤ Love Note";
 	private static final int NOTES_PER_PAGE = 45;
+	private static final int CHAT_NOTES_PER_PAGE = 8;
 
 	private final MarriagePlus plugin;
 	private final MarriageManager marriageManager;
@@ -63,7 +70,23 @@ public class LoveNoteManager {
 			return;
 		}
 
+		if (args.length >= 2 && (args[1].equalsIgnoreCase("list") || args[1].equalsIgnoreCase("inbox"))) {
+			listNotes(player, args);
+			return;
+		}
+
+		if (args.length >= 2 && args[1].equalsIgnoreCase("read")) {
+			readNote(player, args);
+			return;
+		}
+
+		if (args.length >= 2 && args[1].equalsIgnoreCase("delete")) {
+			deleteNote(player, args);
+			return;
+		}
+
 		openNotesGui(player);
+		listNotes(player, args);
 	}
 
 	private void sendNote(Player player, String[] args) {
@@ -165,6 +188,156 @@ public class LoveNoteManager {
 
 		if (saveDigitally) {
 			plugin.langManager().send(partner, "love-notes.read-hint");
+		}
+	}
+
+	private void listNotes(Player player, String[] args) {
+		List<LoveNote> inbox = notes.getOrDefault(player.getUniqueId(), new ArrayList<>());
+
+		if (inbox.isEmpty()) {
+			plugin.langManager().send(player, "love-notes.empty");
+			return;
+		}
+
+		int requestedPage = 1;
+
+		if (args.length >= 3) {
+			try {
+				requestedPage = Integer.parseInt(args[2]);
+			} catch (NumberFormatException exception) {
+				plugin.langManager().send(player, "love-notes.invalid-page");
+				return;
+			}
+		}
+
+		int maxPage = Math.max(1, (int) Math.ceil(inbox.size() / (double) CHAT_NOTES_PER_PAGE));
+		int page = Math.max(1, Math.min(requestedPage, maxPage));
+		int start = (page - 1) * CHAT_NOTES_PER_PAGE;
+		int end = Math.min(start + CHAT_NOTES_PER_PAGE, inbox.size());
+
+		plugin.langManager().send(player, "love-notes.header-page", Map.of(
+				"%page%", String.valueOf(page),
+				"%max_page%", String.valueOf(maxPage)
+		));
+
+		for (int index = start; index < end; index++) {
+			LoveNote note = inbox.get(index);
+			sendClickableNoteLine(player, note, index + 1);
+		}
+
+		plugin.langManager().send(player, "love-notes.list-hint");
+
+		if (page < maxPage) {
+			plugin.langManager().send(player, "love-notes.next-page-hint", Map.of(
+					"%page%", String.valueOf(page + 1)
+			));
+		}
+	}
+	private void sendClickableNoteLine(Player player, LoveNote note, int noteNumber) {
+		String lineKey = note.unread() ? "love-notes.list-line-unread" : "love-notes.list-line-read";
+
+		Component noteLine = legacy(plugin.langManager().get(lineKey, Map.of(
+				"%number%", String.valueOf(noteNumber),
+				"%sender%", note.senderName()
+		)))
+				.clickEvent(ClickEvent.runCommand("/marry note read " + noteNumber))
+				.hoverEvent(HoverEvent.showText(legacy(plugin.langManager().get("love-notes.list-line-hover", Map.of(
+						"%number%", String.valueOf(noteNumber)
+				)))));
+
+		Component deleteButton = legacy(plugin.langManager().get("love-notes.list-delete-button"))
+				.clickEvent(ClickEvent.suggestCommand("/marry note delete " + noteNumber))
+				.hoverEvent(HoverEvent.showText(legacy(plugin.langManager().get("love-notes.list-delete-hover", Map.of(
+						"%number%", String.valueOf(noteNumber)
+				)))));
+
+		player.sendMessage(noteLine.append(legacy(" ")).append(deleteButton));
+	}
+
+
+	private void readNote(Player player, String[] args) {
+		if (args.length < 3) {
+			plugin.langManager().send(player, "love-notes.usage-read");
+			return;
+		}
+
+		Integer noteNumber = parseNoteNumber(player, args[2]);
+
+		if (noteNumber == null) {
+			return;
+		}
+
+		List<LoveNote> inbox = notes.getOrDefault(player.getUniqueId(), new ArrayList<>());
+
+		if (noteNumber < 1 || noteNumber > inbox.size()) {
+			plugin.langManager().send(player, "love-notes.invalid-number");
+			return;
+		}
+
+		int noteIndex = noteNumber - 1;
+		LoveNote note = inbox.get(noteIndex);
+
+		if (note.unread()) {
+			inbox.set(noteIndex, new LoveNote(
+					note.senderId(),
+					note.senderName(),
+					note.message(),
+					note.sentAt(),
+					false
+			));
+
+			plugin.dataManager().saveData();
+		}
+
+		plugin.langManager().send(player, "love-notes.note-header", Map.of(
+				"%number%", String.valueOf(noteNumber)
+		));
+		plugin.langManager().send(player, "love-notes.note-from", Map.of(
+				"%sender%", note.senderName()
+		));
+		plugin.langManager().send(player, "love-notes.note-message", Map.of(
+				"%message%", note.message()
+		));
+		plugin.langManager().send(player, "love-notes.note-time", Map.of(
+				"%time%", formatTime(note.sentAt())
+		));
+	}
+
+	private void deleteNote(Player player, String[] args) {
+		if (args.length < 3) {
+			plugin.langManager().send(player, "love-notes.usage-delete");
+			return;
+		}
+
+		Integer noteNumber = parseNoteNumber(player, args[2]);
+
+		if (noteNumber == null) {
+			return;
+		}
+
+		List<LoveNote> inbox = notes.get(player.getUniqueId());
+
+		if (inbox == null || noteNumber < 1 || noteNumber > inbox.size()) {
+			plugin.langManager().send(player, "love-notes.invalid-number");
+			return;
+		}
+
+		inbox.remove(noteNumber - 1);
+
+		if (inbox.isEmpty()) {
+			notes.remove(player.getUniqueId());
+		}
+
+		plugin.dataManager().saveData();
+		plugin.langManager().send(player, "love-notes.deleted");
+	}
+
+	private Integer parseNoteNumber(Player player, String input) {
+		try {
+			return Integer.parseInt(input);
+		} catch (NumberFormatException exception) {
+			plugin.langManager().send(player, "love-notes.invalid-number");
+			return null;
 		}
 	}
 

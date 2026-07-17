@@ -5,11 +5,13 @@ settings:
   nsfw-actions-enabled: false
   partner-join-notifications: true
 
+
   update-checker:
     enabled: true
     notify-admins-on-join: true
 
   proposal-expire-seconds: 60
+  proposal-cooldown-seconds: 15
   divorce-confirm-seconds: 30
 
   cooldowns:
@@ -34,6 +36,7 @@ titles:
 homes:
   max-homes-default: 3
   max-name-length: 16
+  delete-confirm-seconds: 30
 
 nicknames:
   max-length: 24

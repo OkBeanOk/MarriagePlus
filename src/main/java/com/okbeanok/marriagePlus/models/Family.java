@@ -117,6 +117,19 @@ public class Family {
 		childParents.computeIfAbsent(childId, ignored -> new HashSet<>()).add(parentTwo);
 	}
 
+	public void addChild(UUID childId, Set<UUID> parentIds) {
+		members.add(childId);
+		adoptedChildren.add(childId);
+
+		Set<UUID> parents = childParents.computeIfAbsent(childId, ignored -> new HashSet<>());
+
+		for (UUID parentId : parentIds) {
+			if (members.contains(parentId)) {
+				parents.add(parentId);
+			}
+		}
+	}
+
 	public void removeMember(UUID memberId, boolean preserveHistory) {
 		members.remove(memberId);
 

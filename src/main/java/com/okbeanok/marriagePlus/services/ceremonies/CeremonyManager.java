@@ -11,10 +11,8 @@ import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.meta.FireworkMeta;
 
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 
 import static com.okbeanok.marriagePlus.utils.TextUtils.color;
 import static com.okbeanok.marriagePlus.utils.TextUtils.legacy;
@@ -27,6 +25,8 @@ public class CeremonyManager {
 
 	private final Map<UUID, CeremonyInvite> pendingCeremonies = new HashMap<>();
 	private final Map<String, Long> ceremonyCooldowns = new HashMap<>();
+	private final Map<String, Boolean> activeCountdowns = new HashMap<>();
+	private final Map<UUID, String> customVows = new HashMap<>();
 
 	public CeremonyManager(
 			MarriagePlus plugin,
@@ -53,8 +53,136 @@ public class CeremonyManager {
 			case "start" -> startCeremony(player);
 			case "accept" -> acceptCeremony(player);
 			case "cancel" -> cancelCeremony(player);
+			case "status" -> showCeremonyStatus(player);
+			case "vow" -> setCustomVow(player, args);
 			default -> sendUsage(player);
 		}
+	}
+
+	private void setCustomVow(Player player, String[] args) {
+		UUID partnerId = marriageManager.getPartnerId(player.getUniqueId());
+
+		if (partnerId == null) {
+			plugin.langManager().send(player, "marriage.not-married");
+			return;
+		}
+
+		if (!plugin.configs().ceremonies().getBoolean("vows.custom-enabled", true)) {
+			plugin.langManager().send(player, "ceremony.vow-disabled");
+			return;
+		}
+
+		if (args.length < 3) {
+			plugin.langManager().send(player, "ceremony.vow-usage");
+			return;
+		}
+
+		String vow = joinArgs(args, 2);
+
+		if (vow.isBlank()) {
+			plugin.langManager().send(player, "ceremony.vow-usage");
+			return;
+		}
+
+		int maxLength = plugin.configs().ceremonies().getInt("vows.custom-max-length", 160);
+
+		if (vow.length() > maxLength) {
+			plugin.langManager().send(player, "ceremony.vow-too-long", Map.of(
+					"%max%", String.valueOf(maxLength)
+			));
+			return;
+		}
+
+		customVows.put(player.getUniqueId(), vow);
+
+		plugin.langManager().send(player, "ceremony.vow-set");
+
+		Player partner = Bukkit.getPlayer(partnerId);
+
+		if (partner != null) {
+			plugin.langManager().send(partner, "ceremony.partner-vow-set", Map.of(
+					"%player%", player.getName()
+			));
+		}
+	}
+
+	private void showCeremonyStatus(Player player) {
+		plugin.langManager().send(player, "ceremony.status-header");
+
+		if (!plugin.configs().ceremonies().getBoolean("enabled", true)) {
+			plugin.langManager().send(player, "ceremony.status-enabled", Map.of(
+					"%status%", plugin.langManager().get("status.values.off")
+			));
+			return;
+		}
+
+		plugin.langManager().send(player, "ceremony.status-enabled", Map.of(
+				"%status%", plugin.langManager().get("status.values.on")
+		));
+
+		UUID playerId = player.getUniqueId();
+		UUID partnerId = marriageManager.getPartnerId(playerId);
+
+		if (partnerId == null) {
+			plugin.langManager().send(player, "marriage.not-married");
+			return;
+		}
+
+		String coupleKey = marriageManager.coupleKey(playerId, partnerId);
+		Player partner = Bukkit.getPlayer(partnerId);
+
+		plugin.langManager().send(player, "ceremony.status-cooldown", Map.of(
+				"%status%", getCooldownStatus(coupleKey)
+		));
+
+		CeremonyInvite incomingInvite = pendingCeremonies.get(playerId);
+		CeremonyInvite outgoingInvite = pendingCeremonies.get(partnerId);
+
+		if (incomingInvite != null && !incomingInvite.expired()) {
+			plugin.langManager().send(player, "ceremony.status-pending-incoming", Map.of(
+					"%time%", formatTimeRemaining(incomingInvite.expiresAt() - System.currentTimeMillis())
+			));
+		} else if (outgoingInvite != null && !outgoingInvite.expired()) {
+			plugin.langManager().send(player, "ceremony.status-pending-outgoing", Map.of(
+					"%time%", formatTimeRemaining(outgoingInvite.expiresAt() - System.currentTimeMillis())
+			));
+		} else {
+			plugin.langManager().send(player, "ceremony.status-pending-none");
+		}
+
+		if (partner == null) {
+			plugin.langManager().send(player, "ceremony.status-partner-offline");
+			return;
+		}
+
+		if (!player.getWorld().equals(partner.getWorld())) {
+			plugin.langManager().send(player, "ceremony.status-distance-world");
+			return;
+		}
+
+		double requiredRadius = plugin.configs().ceremonies().getDouble("required-radius", 12.0D);
+		double distance = player.getLocation().distance(partner.getLocation());
+
+		plugin.langManager().send(player, "ceremony.status-distance", Map.of(
+				"%distance%", String.format(Locale.ROOT, "%.1f", distance),
+				"%required%", String.format(Locale.ROOT, "%.1f", requiredRadius),
+				"%status%", distance <= requiredRadius
+						? plugin.langManager().get("ceremony.status-distance-close")
+						: plugin.langManager().get("ceremony.status-distance-far")
+		));
+	}
+
+	private String getCooldownStatus(String coupleKey) {
+		long expiresAt = ceremonyCooldowns.getOrDefault(coupleKey, 0L);
+
+		if (expiresAt <= System.currentTimeMillis()) {
+			ceremonyCooldowns.remove(coupleKey);
+			return plugin.langManager().get("ceremony.status-cooldown-ready");
+		}
+
+		return plugin.langManager().get("ceremony.status-cooldown-wait", Map.of(
+				"%time%", formatTimeRemaining(expiresAt - System.currentTimeMillis())
+		));
 	}
 
 	private void startCeremony(Player player) {
@@ -160,8 +288,7 @@ public class CeremonyManager {
 			return;
 		}
 
-		setCeremonyCooldown(invite.coupleKey());
-		completeCeremony(partner, player);
+		startCeremonyCountdown(partner, player, invite.coupleKey());
 	}
 
 	private void cancelCeremony(Player player) {
@@ -172,6 +299,8 @@ public class CeremonyManager {
 
 		if (partnerId != null) {
 			removed = pendingCeremonies.remove(partnerId) != null || removed;
+			String coupleKey = marriageManager.coupleKey(playerId, partnerId);
+			removed = activeCountdowns.remove(coupleKey) != null || removed;
 		}
 
 		plugin.langManager().send(player, removed ? "ceremony.cancelled" : "ceremony.no-invite");
@@ -182,6 +311,87 @@ public class CeremonyManager {
 			if (partner != null) {
 				plugin.langManager().send(partner, "ceremony.cancelled");
 			}
+		}
+	}
+
+	private void startCeremonyCountdown(Player first, Player second, String coupleKey) {
+		if (activeCountdowns.containsKey(coupleKey)) {
+			plugin.langManager().send(first, "ceremony.countdown-already-active");
+			plugin.langManager().send(second, "ceremony.countdown-already-active");
+			return;
+		}
+
+		int countdownSeconds = plugin.configs().ceremonies().getInt("countdown-seconds", 5);
+
+		if (countdownSeconds <= 0) {
+			setCeremonyCooldown(coupleKey);
+			completeCeremony(first, second);
+			return;
+		}
+
+		activeCountdowns.put(coupleKey, true);
+		plugin.langManager().send(first, "ceremony.countdown-started");
+		plugin.langManager().send(second, "ceremony.countdown-started");
+
+		runCeremonyCountdown(first.getUniqueId(), second.getUniqueId(), coupleKey, countdownSeconds);
+	}
+
+	private void runCeremonyCountdown(UUID firstId, UUID secondId, String coupleKey, int secondsRemaining) {
+		Player first = Bukkit.getPlayer(firstId);
+		Player second = Bukkit.getPlayer(secondId);
+
+		if (first == null || second == null) {
+			activeCountdowns.remove(coupleKey);
+			sendIfOnline(firstId, "ceremony.countdown-cancelled-offline");
+			sendIfOnline(secondId, "ceremony.countdown-cancelled-offline");
+			return;
+		}
+
+		if (!activeCountdowns.containsKey(coupleKey)) {
+			return;
+		}
+
+		if (!marriageManager.coupleKey(firstId, secondId).equals(coupleKey)) {
+			activeCountdowns.remove(coupleKey);
+			plugin.langManager().send(first, "ceremony.countdown-cancelled-invalid");
+			plugin.langManager().send(second, "ceremony.countdown-cancelled-invalid");
+			return;
+		}
+
+		if (!isNearEnough(first, second)) {
+			activeCountdowns.remove(coupleKey);
+			plugin.langManager().send(first, "ceremony.countdown-cancelled-distance");
+			plugin.langManager().send(second, "ceremony.countdown-cancelled-distance");
+			return;
+		}
+
+		if (secondsRemaining <= 0) {
+			activeCountdowns.remove(coupleKey);
+			setCeremonyCooldown(coupleKey);
+			completeCeremony(first, second);
+			return;
+		}
+
+		plugin.langManager().send(first, "ceremony.countdown-tick", Map.of(
+				"%seconds%", String.valueOf(secondsRemaining)
+		));
+		plugin.langManager().send(second, "ceremony.countdown-tick", Map.of(
+				"%seconds%", String.valueOf(secondsRemaining)
+		));
+
+		Bukkit.getScheduler().runTaskLater(plugin, () -> runCeremonyCountdown(
+				firstId,
+				secondId,
+				coupleKey,
+				secondsRemaining - 1
+		), 20L);
+	}
+
+	private void sendIfOnline(UUID playerId, String langPath) {
+		Player player = Bukkit.getPlayer(playerId);
+
+		if (player != null) {
+			plugin.langManager().send(player, langPath);
 		}
 	}
 
@@ -250,13 +460,80 @@ public class CeremonyManager {
 	}
 
 	private void sendVows(Player first, Player second) {
-		for (String vow : plugin.configs().ceremonies().getStringList("messages.vows")) {
-			String message = vow
-					.replace("%player%", first.getName())
-					.replace("%partner%", second.getName());
+		boolean privateVows = plugin.configs().ceremonies().getString("vows.mode", "PUBLIC").equalsIgnoreCase("PRIVATE");
 
-			Bukkit.broadcastMessage(color(message));
+		sendCustomVow(first, second, privateVows);
+		sendCustomVow(second, first, privateVows);
+
+		List<String> vows = plugin.configs().ceremonies().getStringList("messages.vows");
+
+		if (vows.isEmpty()) {
+			clearCustomVows(first, second);
+			return;
 		}
+
+		if (plugin.configs().ceremonies().getBoolean("vows.random", false)) {
+			vows = randomVows(vows);
+		}
+
+		for (String vow : vows) {
+			String message = color(vow
+					.replace("%player%", first.getName())
+					.replace("%partner%", second.getName()));
+
+			sendVowMessage(first, second, message, privateVows);
+		}
+
+		clearCustomVows(first, second);
+	}
+
+	private void sendCustomVow(Player speaker, Player partner, boolean privateVows) {
+		String vow = customVows.get(speaker.getUniqueId());
+
+		if (vow == null || vow.isBlank()) {
+			return;
+		}
+
+		String format = plugin.configs().ceremonies().getString(
+				"vows.custom-format",
+				"&d%player% vows: &f%message%"
+		);
+
+		String message = color(format
+				.replace("%player%", speaker.getName())
+				.replace("%partner%", partner.getName())
+				.replace("%message%", vow));
+
+		sendVowMessage(speaker, partner, message, privateVows);
+	}
+
+	private void sendVowMessage(Player first, Player second, String message, boolean privateVows) {
+		if (privateVows) {
+			first.sendMessage(message);
+			second.sendMessage(message);
+			return;
+		}
+
+		Bukkit.broadcastMessage(message);
+	}
+
+	private void clearCustomVows(Player first, Player second) {
+		customVows.remove(first.getUniqueId());
+		customVows.remove(second.getUniqueId());
+	}
+
+	private List<String> randomVows(List<String> vows) {
+		int randomCount = plugin.configs().ceremonies().getInt("vows.random-count", 1);
+		randomCount = Math.max(1, Math.min(randomCount, vows.size()));
+
+		List<String> remaining = new java.util.ArrayList<>(vows);
+		List<String> selected = new java.util.ArrayList<>();
+
+		while (selected.size() < randomCount && !remaining.isEmpty()) {
+			selected.add(remaining.remove(ThreadLocalRandom.current().nextInt(remaining.size())));
+		}
+
+		return selected;
 	}
 
 	private void sendCeremonyButtons(Player partner, int expireSeconds) {
@@ -452,6 +729,8 @@ public class CeremonyManager {
 		plugin.langManager().send(player, "ceremony.usage-start");
 		plugin.langManager().send(player, "ceremony.usage-accept");
 		plugin.langManager().send(player, "ceremony.usage-cancel");
+		plugin.langManager().send(player, "ceremony.usage-status");
+		plugin.langManager().send(player, "ceremony.usage-vow");
 	}
 
 	private record CeremonyInvite(UUID inviterId, UUID receiverId, String coupleKey, long expiresAt) {
@@ -459,5 +738,13 @@ public class CeremonyManager {
 		private boolean expired() {
 			return System.currentTimeMillis() > expiresAt;
 		}
+	}
+
+	private String joinArgs(String[] args, int startIndex) {
+		if (startIndex >= args.length) {
+			return "";
+		}
+
+		return String.join(" ", Arrays.copyOfRange(args, startIndex, args.length)).trim();
 	}
 }

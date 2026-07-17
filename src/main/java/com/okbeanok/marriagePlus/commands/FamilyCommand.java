@@ -51,7 +51,7 @@ public class FamilyCommand implements TabExecutor {
 
 		return switch (args.length) {
 			case 1 -> completeFirstArg(args[0]);
-			case 2 -> completeSecondArg(sender, args[0], args[1]);
+			case 2 -> completeSecondArg( args[0], args[1]);
 			default -> Collections.emptyList();
 		};
 	}
@@ -73,12 +73,9 @@ public class FamilyCommand implements TabExecutor {
 		), input);
 	}
 
-	private List<String> completeSecondArg(CommandSender sender, String firstArg, String input) {
+	private List<String> completeSecondArg(String firstArg, String input) {
 		return switch (firstArg.toLowerCase(Locale.ROOT)) {
 			case "invite", "adopt", "kick" -> filter(onlinePlayerNames(), input);
-			case "web" -> sender.hasPermission("marriageplus.admin")
-					? filter(List.of("export"), input)
-					: Collections.emptyList();
 			default -> Collections.emptyList();
 		};
 	}

@@ -8,6 +8,8 @@ import org.bukkit.OfflinePlayer;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 public class FamilyWebExporter {
@@ -118,6 +120,31 @@ public class FamilyWebExporter {
 			}
 
 			json.append("],\n");
+			json.append("    \"childParents\": {");
+
+			int childParentIndex = 0;
+
+			for (Map.Entry<UUID, Set<UUID>> entry : family.childParents().entrySet()) {
+				if (childParentIndex++ > 0) {
+					json.append(", ");
+				}
+
+				json.append(jsonValue(entry.getKey().toString())).append(": [");
+
+				int parentIndex = 0;
+
+				for (UUID parentId : entry.getValue()) {
+					if (parentIndex++ > 0) {
+						json.append(", ");
+					}
+
+					json.append(jsonValue(parentId.toString()));
+				}
+
+				json.append("]");
+			}
+
+			json.append("},\n");
 			json.append("    \"formerMembers\": [");
 
 			if (showHistoricalMembers) {
@@ -605,7 +632,75 @@ public class FamilyWebExporter {
 							gap: 14px;
 							margin: 16px 0;
 						}
-
+						
+						.generation-tree {
+							display: grid;
+							gap: 12px;
+							margin-top: 14px;
+						}
+						
+						.tree-node {
+							position: relative;
+							display: grid;
+							gap: 10px;
+						}
+						
+						.tree-node.has-children {
+							padding-left: 18px;
+						}
+						
+						.tree-node.has-children::before {
+							content: "";
+							position: absolute;
+							left: 5px;
+							top: 28px;
+							bottom: 8px;
+							width: 2px;
+							background: linear-gradient(to bottom, rgba(255, 107, 214, 0.55), rgba(155, 109, 255, 0.16));
+							border-radius: 999px;
+						}
+						
+						.tree-children {
+							display: grid;
+							gap: 10px;
+							margin-left: 18px;
+							padding-left: 14px;
+							border-left: 1px solid rgba(255, 255, 255, 0.10);
+						}
+						
+						.tree-branch-label {
+							display: inline-flex;
+							width: fit-content;
+							align-items: center;
+							gap: 7px;
+							border: 1px solid rgba(255, 107, 214, 0.18);
+							background: rgba(255, 107, 214, 0.08);
+							color: #ffd7f7;
+							border-radius: 999px;
+							padding: 6px 9px;
+							font-size: 11px;
+							font-weight: 900;
+							text-transform: uppercase;
+							letter-spacing: 0.08em;
+						}
+						
+						.person-row {
+							display: flex;
+							align-items: center;
+							gap: 8px;
+							flex-wrap: wrap;
+						}
+						
+						.relationship-chip {
+							border: 1px solid rgba(255, 255, 255, 0.11);
+							background: rgba(255, 255, 255, 0.055);
+							color: var(--muted);
+							border-radius: 999px;
+							padding: 5px 8px;
+							font-size: 11px;
+							font-weight: 800;
+						}
+						
 						.parents {
 							display: grid;
 							grid-template-columns: 1fr 42px 1fr;
@@ -1005,7 +1100,7 @@ public class FamilyWebExporter {
 						}
 
 						function playerKey(player) {
-							return player?.uuid || player?.name || Math.random().toString();
+							return player?.id || player?.uuid || player?.name || Math.random().toString();
 						}
 
 						function allPlayers(family) {
@@ -1102,6 +1197,121 @@ public class FamilyWebExporter {
 
 						function familyOnlineCount(family) {
 							return uniquePlayers(allPlayers(family)).filter(player => player.online).length;
+						}
+
+						function playerMap(family) {
+							const map = new Map();
+
+							for (const player of [
+								family.parentOne,
+								family.parentTwo,
+								...(family.members || []),
+								...(family.adoptedChildren || []),
+								...(family.formerMembers || [])
+							].filter(Boolean)) {
+								if (player.id) {
+									map.set(player.id, player);
+								}
+
+								if (player.uuid) {
+									map.set(player.uuid, player);
+								}
+
+								if (player.name) {
+									map.set(player.name, player);
+								}
+							}
+
+							return map;
+						}
+
+						function childParentMap(family) {
+							return family.childParents && typeof family.childParents === 'object'
+								? family.childParents
+								: {};
+						}
+
+						function childrenOf(parentId, family) {
+							const childParents = childParentMap(family);
+
+							return Object.entries(childParents)
+								.filter(([, parentIds]) => Array.isArray(parentIds) && parentIds.includes(parentId))
+								.map(([childId]) => childId);
+						}
+
+						function rootChildren(family) {
+							const parentIds = [
+								playerKey(family.parentOne),
+								playerKey(family.parentTwo)
+							].filter(Boolean);
+				
+							const childParents = childParentMap(family);
+
+							return Object.entries(childParents)
+								.filter(([, linkedParents]) =>
+									Array.isArray(linkedParents) && linkedParents.some(parentId => parentIds.includes(parentId))
+								)
+								.map(([childId]) => childId);
+						}
+
+						function renderTreeNode(playerId, family, players, visited = new Set(), depth = 0) {
+							if (!playerId || visited.has(playerId)) {
+								return '';
+							}
+
+							visited.add(playerId);
+
+							const player = players.get(playerId) || { uuid: playerId, name: 'Unknown', online: false };
+							const childIds = childrenOf(playerId, family)
+								.filter(childId => !visited.has(childId));
+							const hasChildren = childIds.length > 0;
+							const label = depth === 0 ? 'Child' : depth === 1 ? 'Grandchild' : `${depth + 1}th Generation`;
+
+							return `
+								<div class="tree-node ${hasChildren ? 'has-children' : ''}">
+									<div class="person-row">
+										${miniPlayer(player)}
+										<span class="relationship-chip">${escapeHtml(label)}</span>
+									</div>
+									${hasChildren ? `
+										<div class="tree-children">
+											${childIds.map(childId => renderTreeNode(childId, family, players, new Set(visited), depth + 1)).join('')}
+										</div>
+									` : ''}
+								</div>
+							`;
+						}
+
+						function recursiveFamilyTree(family) {
+							const players = playerMap(family);
+							const childIds = [...new Set(rootChildren(family))];
+
+							if (childIds.length === 0) {
+								return `<div class="empty">No descendants listed yet.</div>`;
+							}
+
+							return `
+								<div class="generation-tree">
+									<div class="tree-branch-label">Family Tree</div>
+									${childIds.map(childId => renderTreeNode(childId, family, players)).join('')}
+								</div>
+							`;
+						}
+
+						function unlinkedMembers(family) {
+							const childIds = new Set(Object.keys(childParentMap(family)));
+							const parentIds = new Set([
+								playerKey(family.parentOne),
+								playerKey(family.parentTwo)
+							].filter(Boolean));
+
+							return uniquePlayers([
+								...(family.members || []),
+								...(family.adoptedChildren || [])
+							]).filter(player => {
+								const key = playerKey(player);
+								return key && !childIds.has(key) && !parentIds.has(key);
+							});
 						}
 
 						function familySearchText(family) {
@@ -1214,14 +1424,16 @@ public class FamilyWebExporter {
 											<div class="connector">❤</div>
 											${playerCard(family.parentTwo)}
 										</div>
+
+										${recursiveFamilyTree(family)}
 									</div>
 
 									<div class="section">
 										<div class="section-head">
-											<div class="section-title">Children / Members</div>
-											<div class="section-count">${members.length}</div>
+											<div class="section-title">Unlinked Members</div>
+											<div class="section-count">${unlinkedMembers(family).length}</div>
 										</div>
-										${miniList(members, 'No children or members listed yet.')}
+										${miniList(unlinkedMembers(family), 'No unlinked members.')}
 									</div>
 
 									<div class="details">
@@ -1327,6 +1539,7 @@ public class FamilyWebExporter {
 		OfflinePlayer player = Bukkit.getOfflinePlayer(uuid);
 
 		return "{"
+				+ "\"id\":" + jsonValue(uuid.toString()) + ","
 				+ "\"name\":" + jsonValue(player.getName() == null ? "Unknown" : player.getName()) + ","
 				+ "\"online\":" + player.isOnline() + ","
 				+ "\"uuid\":" + jsonValue(showUuid ? uuid.toString() : "")

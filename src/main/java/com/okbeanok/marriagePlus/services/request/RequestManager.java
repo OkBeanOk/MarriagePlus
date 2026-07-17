@@ -32,6 +32,7 @@ public class RequestManager {
 	private final Set<String> blockedMarriageRequests = new HashSet<>();
 	private final Map<UUID, String> chatColors = new HashMap<>();
 	private final Set<UUID> chatPrefixDisabled = new HashSet<>();
+	private final Map<UUID, Long> proposalCooldowns = new HashMap<>();
 
 	public RequestManager(MarriagePlus plugin, MarriageManager marriageManager) {
 		this.plugin = plugin;
@@ -61,6 +62,10 @@ public class RequestManager {
 	public void sendMarriageRequest(Player player, String[] args) {
 		if (args.length < 2) {
 			plugin.langManager().send(player, "requests.usage");
+			return;
+		}
+
+		if (isOnProposalCooldown(player)) {
 			return;
 		}
 
@@ -96,11 +101,6 @@ public class RequestManager {
 			return;
 		}
 
-		if (marriageManager.isMarried(target.getUniqueId())) {
-			plugin.langManager().send(player, "marriage.target-already-married");
-			return;
-		}
-
 		FamilyMarriageCheckResult familyMarriageCheckResult = plugin.familyManager().checkMarriageAllowed(player, target);
 
 		if (familyMarriageCheckResult == FamilyMarriageCheckResult.BLOCKED) {
@@ -113,12 +113,25 @@ public class RequestManager {
 			plugin.langManager().send(target, "family.marriage-warning-related");
 		}
 
-		if (marriageRequestsDisabled.contains(target.getUniqueId())) {
-			plugin.langManager().send(player, "requests.blocked");
+		UUID existingProposerId = proposals.get(target.getUniqueId());
+
+		if (existingProposerId != null) {
+			if (existingProposerId.equals(player.getUniqueId())) {
+				plugin.langManager().send(player, "requests.already-sent", Map.of(
+						"%player%", target.getName()
+				));
+				return;
+			}
+
+			plugin.langManager().send(player, "requests.target-has-pending", Map.of(
+					"%player%", target.getName()
+			));
 			return;
+
 		}
 
 		proposals.put(target.getUniqueId(), player.getUniqueId());
+		setProposalCooldown(player);
 
 		int expireSeconds = plugin.getConfig().getInt("settings.proposal-expire-seconds", 60);
 
@@ -154,6 +167,33 @@ public class RequestManager {
 		));
 	}
 
+	private boolean isOnProposalCooldown(Player player) {
+		long expiresAt = proposalCooldowns.getOrDefault(player.getUniqueId(), 0L);
+
+		if (expiresAt <= System.currentTimeMillis()) {
+			proposalCooldowns.remove(player.getUniqueId());
+			return false;
+		}
+
+		long seconds = Math.max(1L, (expiresAt - System.currentTimeMillis()) / 1000L);
+
+		plugin.langManager().send(player, "requests.cooldown", Map.of(
+				"%seconds%", String.valueOf(seconds)
+		));
+
+		return true;
+	}
+
+	private void setProposalCooldown(Player player) {
+		int cooldownSeconds = plugin.getConfig().getInt("settings.proposal-cooldown-seconds", 15);
+
+		if (cooldownSeconds <= 0) {
+			return;
+		}
+
+		proposalCooldowns.put(player.getUniqueId(), System.currentTimeMillis() + cooldownSeconds * 1000L);
+	}
+
 	private void sendProposalButtons(Player target, Player proposer, int expireSeconds) {
 		Component acceptButton = legacy(plugin.langManager().get("requests.accept-button"))
 				.clickEvent(ClickEvent.runCommand("/marry accept"))
@@ -174,6 +214,36 @@ public class RequestManager {
 				.append(legacy(plugin.langManager().get("requests.buttons-expire", Map.of(
 						"%seconds%", String.valueOf(expireSeconds)
 				)))));
+	}
+
+	private void sendIncomingRequestDashboardButtons(Player player, String proposerName) {
+		Component acceptButton = legacy(plugin.langManager().get("requests.accept-button"))
+				.clickEvent(ClickEvent.runCommand("/marry accept"))
+				.hoverEvent(HoverEvent.showText(legacy(plugin.langManager().get("requests.accept-hover", Map.of(
+						"%player%", proposerName
+				)))));
+
+		Component denyButton = legacy(plugin.langManager().get("requests.deny-button"))
+				.clickEvent(ClickEvent.runCommand("/marry deny"))
+				.hoverEvent(HoverEvent.showText(legacy(plugin.langManager().get("requests.deny-hover", Map.of(
+						"%player%", proposerName
+				)))));
+
+		player.sendMessage(legacy(plugin.langManager().get("requests.dashboard-actions-prefix"))
+				.append(acceptButton)
+				.append(legacy(plugin.langManager().get("requests.dashboard-actions-separator")))
+				.append(denyButton));
+	}
+
+	private void sendOutgoingRequestDashboardButton(Player player, String targetName) {
+		Component cancelButton = legacy(plugin.langManager().get("requests.cancel-button"))
+				.clickEvent(ClickEvent.runCommand("/marry requests cancel"))
+				.hoverEvent(HoverEvent.showText(legacy(plugin.langManager().get("requests.cancel-hover", Map.of(
+						"%player%", targetName
+				)))));
+
+		player.sendMessage(legacy(plugin.langManager().get("requests.dashboard-actions-prefix"))
+				.append(cancelButton));
 	}
 
 	public void acceptProposal(Player player) {
@@ -210,26 +280,13 @@ public class RequestManager {
 
 		Player proposer = Bukkit.getPlayer(proposerId);
 
-		if (proposer == null) {
-			plugin.langManager().send(player, "general.player-not-online");
-			return;
+		plugin.langManager().send(player, "requests.denied");
+
+		if (proposer != null) {
+			plugin.langManager().send(proposer, "requests.denied-sender", Map.of(
+					"%player%", player.getName()
+			));
 		}
-
-		FamilyMarriageCheckResult familyMarriageCheckResult = plugin.familyManager().checkMarriageAllowed(proposer, player);
-
-		if (familyMarriageCheckResult == FamilyMarriageCheckResult.BLOCKED) {
-			plugin.langManager().send(player, "family.marriage-blocked-related");
-			plugin.langManager().send(proposer, "family.marriage-blocked-related");
-			return;
-		}
-
-		if (familyMarriageCheckResult == FamilyMarriageCheckResult.WARN) {
-			plugin.langManager().send(player, "family.marriage-warning-related");
-			plugin.langManager().send(proposer, "family.marriage-warning-related");
-		}
-
-		plugin.langManager().send(player, "requests.accepted");
-		marriageManager.marryPlayers(proposer, player);
 	}
 
 	public void marriageChat(Player player, String[] args) {
@@ -334,13 +391,18 @@ public class RequestManager {
 	}
 
 	public void requestsCommand(Player player, String[] args) {
+		if (args.length >= 2 && args[1].equalsIgnoreCase("pending")) {
+			showPendingProposal(player);
+			return;
+		}
+
+		if (args.length >= 2 && args[1].equalsIgnoreCase("cancel")) {
+			cancelOutgoingProposal(player);
+			return;
+		}
+
 		if (args.length < 2) {
-			plugin.langManager().send(player, "requests.status", Map.of(
-					"%status%", plugin.langManager().get(marriageRequestsDisabled.contains(player.getUniqueId())
-							? "requests.status-disabled"
-							: "requests.status-enabled")
-			));
-			plugin.langManager().send(player, "requests.toggle-usage");
+			showRequestStatus(player);
 			return;
 		}
 
@@ -359,6 +421,92 @@ public class RequestManager {
 		}
 
 		plugin.langManager().send(player, "requests.toggle-usage-error");
+	}
+
+	private void showRequestStatus(Player player) {
+		String status = plugin.langManager().get(marriageRequestsDisabled.contains(player.getUniqueId())
+				? "requests.status-disabled"
+				: "requests.status-enabled");
+
+		UUID incomingProposerId = proposals.get(player.getUniqueId());
+		String incoming = incomingProposerId == null
+				? plugin.langManager().get("general.none")
+				: safeName(Bukkit.getOfflinePlayer(incomingProposerId));
+
+		UUID outgoingTargetId = findOutgoingProposalTarget(player.getUniqueId());
+		String outgoing = outgoingTargetId == null
+				? plugin.langManager().get("general.none")
+				: safeName(Bukkit.getOfflinePlayer(outgoingTargetId));
+
+		plugin.langManager().send(player, "requests.status-header");
+		plugin.langManager().send(player, "requests.status", Map.of(
+				"%status%", status
+		));
+		plugin.langManager().send(player, "requests.status-incoming", Map.of(
+				"%player%", incoming
+		));
+
+		if (incomingProposerId != null) {
+			sendIncomingRequestDashboardButtons(player, incoming);
+		}
+
+		plugin.langManager().send(player, "requests.status-outgoing", Map.of(
+				"%player%", outgoing
+		));
+
+		if (outgoingTargetId != null) {
+			sendOutgoingRequestDashboardButton(player, outgoing);
+		}
+
+		plugin.langManager().send(player, "requests.toggle-usage");
+	}
+
+	private String safeName(OfflinePlayer player) {
+		return player.getName() == null ? plugin.langManager().get("general.unknown") : player.getName();
+	}
+
+	private void showPendingProposal(Player player) {
+		UUID incomingProposerId = proposals.get(player.getUniqueId());
+		UUID outgoingTargetId = findOutgoingProposalTarget(player.getUniqueId());
+
+		if (incomingProposerId == null && outgoingTargetId == null) {
+			plugin.langManager().send(player, "requests.no-pending");
+			return;
+		}
+
+		plugin.langManager().send(player, "requests.pending-header");
+
+		if (incomingProposerId != null) {
+			OfflinePlayer proposer = Bukkit.getOfflinePlayer(incomingProposerId);
+			String proposerName = safeName(proposer);
+
+			plugin.langManager().send(player, "requests.pending-incoming-line", Map.of(
+					"%player%", proposerName
+			));
+
+			sendIncomingRequestDashboardButtons(player, proposerName);
+		}
+
+		if (outgoingTargetId != null) {
+			OfflinePlayer target = Bukkit.getOfflinePlayer(outgoingTargetId);
+			String targetName = safeName(target);
+
+			plugin.langManager().send(player, "requests.pending-outgoing-line", Map.of(
+					"%player%", targetName
+			));
+
+			sendOutgoingRequestDashboardButton(player, targetName);
+		}
+	}
+
+	private UUID findOutgoingProposalTarget(UUID proposerId) {
+		for (Map.Entry<UUID, UUID> entry : proposals.entrySet()) {
+			if (entry.getValue().equals(proposerId)) {
+				return entry.getKey();
+			}
+		}
+
+		return null;
 	}
 
 	public void blockCommand(Player player, String[] args) {
@@ -380,6 +528,30 @@ public class RequestManager {
 		plugin.langManager().send(player, "requests.player-blocked", Map.of(
 				"%player%", args[1]
 		));
+	}
+
+	private void cancelOutgoingProposal(Player player) {
+		UUID targetId = findOutgoingProposalTarget(player.getUniqueId());
+
+		if (targetId == null) {
+			plugin.langManager().send(player, "requests.no-outgoing");
+			return;
+		}
+
+		proposals.remove(targetId);
+
+		Player onlineTarget = Bukkit.getPlayer(targetId);
+		String targetName = safeName(Bukkit.getOfflinePlayer(targetId));
+
+		plugin.langManager().send(player, "requests.cancelled-outgoing", Map.of(
+				"%player%", targetName
+		));
+
+		if (onlineTarget != null) {
+			plugin.langManager().send(onlineTarget, "requests.cancelled-incoming", Map.of(
+					"%player%", player.getName()
+			));
+		}
 	}
 
 	public void unblockCommand(Player player, String[] args) {

@@ -34,6 +34,9 @@ public class FamilyManager {
 	private final Map<String, Family> families = new HashMap<>();
 	private final Map<UUID, String> playerFamilies = new HashMap<>();
 	private final Map<UUID, FamilyInvite> invites = new HashMap<>();
+	private final Map<UUID, Long> leaveConfirmations = new HashMap<>();
+	private final Map<UUID, PendingKick> kickConfirmations = new HashMap<>();
+
 
 	public FamilyManager(MarriagePlus plugin, MarriageManager marriageManager) {
 		this.plugin = plugin;
@@ -59,18 +62,51 @@ public class FamilyManager {
 			case "invite", "adopt" -> invite(player, args);
 			case "accept" -> accept(player);
 			case "deny", "decline" -> denyInvite(player);
-			case "leave" -> leave(player);
+			case "leave" -> leave(player, args);
 			case "kick" -> kick(player, args);
 			case "rename" -> rename(player, args);
 			case "chat" -> chat(player, args);
-			case "tree" -> sendTreeLink(player);
-			case "web" -> web(player, args);
-			default -> {
-				plugin.langManager().send(player, "family.usage");
-				sendFamilyHelp(player);
-			}
+			case "tree", "web" -> web(player, args);
+			case "info" -> info(player, args);
+			case "members" -> members(player);
+			case "requests" -> requests(player);
+			default -> showFamily(player);
 		}
 	}
+
+	private void requests(Player player) {
+		FamilyInvite invite = invites.get(player.getUniqueId());
+
+		if (invite == null) {
+			plugin.langManager().send(player, "family.no-invite");
+			return;
+		}
+
+		if (invite.expired()) {
+			invites.remove(player.getUniqueId());
+			plugin.langManager().send(player, "family.invite-expired");
+			return;
+		}
+
+		Family family = families.get(invite.familyId());
+
+		if (family == null) {
+			invites.remove(player.getUniqueId());
+			plugin.langManager().send(player, "family.not-found");
+			return;
+		}
+
+		OfflinePlayer inviter = Bukkit.getOfflinePlayer(invite.inviter());
+
+		plugin.langManager().send(player, "family.requests-header");
+		plugin.langManager().send(player, "family.requests-line", Map.of(
+				"%player%", safeName(inviter),
+				"%family%", family.name()
+		));
+
+		sendInviteButtons(player);
+	}
+
 
 	private String[] normalizeFamilyArgs(String[] args) {
 		if (args.length == 0) {
@@ -92,18 +128,134 @@ public class FamilyManager {
 		sendCommandHelp(player, "/family invite <player>", "Invite/adopt a player into your family.");
 		sendCommandHelp(player, "/family accept", "Accept a family invite.");
 		sendCommandHelp(player, "/family deny", "Deny a family invite.");
+		sendCommandHelp(player, "/family requests", "View pending family invites.");
 		sendCommandHelp(player, "/family leave", "Leave your family.");
 		sendCommandHelp(player, "/family kick <player>", "Kick a family member.");
 		sendCommandHelp(player, "/family rename <name>", "Rename your family.");
+		sendCommandHelp(player, "/family info [player]", "View a family member's details.");
+		sendCommandHelp(player, "/family members", "List all family members.");
 		sendCommandHelp(player, "/family chat <message>", "Send a family chat message.");
 		sendCommandHelp(player, "/family tree", "Open your family tree webpage.");
 		sendCommandHelp(player, "/family web", "Open your family tree webpage.");
 
-		if (player.hasPermission("marriageplus.admin")) {
-			sendCommandHelp(player, "/family web export", "Export all family webpages.");
+		player.sendMessage(color("&d&m                              "));
+	}
+
+	private void members(Player player) {
+		Family family = getFamily(player.getUniqueId());
+
+		if (family == null) {
+			plugin.langManager().send(player, "family.not-in-family");
+			return;
 		}
 
-		player.sendMessage(color("&d&m                              "));
+		List<String> parents = List.of(family.parentOne(), family.parentTwo()).stream()
+				.map(this::formattedFamilyMemberName)
+				.sorted(String.CASE_INSENSITIVE_ORDER)
+				.toList();
+
+		List<String> descendants = family.childParents().keySet().stream()
+				.map(this::formattedFamilyMemberName)
+				.sorted(String.CASE_INSENSITIVE_ORDER)
+				.toList();
+
+		List<String> others = otherFamilyMembers(family).stream()
+				.map(this::formattedFamilyMemberName)
+				.sorted(String.CASE_INSENSITIVE_ORDER)
+				.toList();
+
+		plugin.langManager().send(player, "family.members-header", Map.of(
+				"%family%", family.name(),
+				"%count%", String.valueOf(family.members().size())
+		));
+
+		plugin.langManager().send(player, "family.members-parents", Map.of(
+				"%members%", parents.isEmpty() ? plugin.langManager().get("general.none") : String.join(", ", parents)
+		));
+
+		plugin.langManager().send(player, "family.members-descendants", Map.of(
+				"%members%", descendants.isEmpty() ? plugin.langManager().get("general.none") : String.join(", ", descendants)
+		));
+
+		plugin.langManager().send(player, "family.members-other", Map.of(
+				"%members%", others.isEmpty() ? plugin.langManager().get("general.none") : String.join(", ", others)
+		));
+	}
+
+	private String formattedFamilyMemberName(UUID playerId) {
+		OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerId);
+		boolean online = Bukkit.getPlayer(playerId) != null;
+		String status = plugin.langManager().get(online ? "family.online" : "family.offline");
+
+		return safeName(offlinePlayer) + " " + status;
+	}
+
+	private void info(Player viewer, String[] args) {
+		OfflinePlayer target = viewer;
+
+		if (args.length >= 2) {
+			target = Bukkit.getOfflinePlayer(args[1]);
+		}
+
+		Family family = getFamily(target.getUniqueId());
+
+		if (family == null) {
+			plugin.langManager().send(viewer, "family.info-not-in-family", Map.of(
+					"%player%", safeName(target)
+			));
+			return;
+		}
+
+		List<String> parentNames = family.childParents().getOrDefault(target.getUniqueId(), Set.of()).stream()
+				.map(parentId -> safeName(Bukkit.getOfflinePlayer(parentId)))
+				.sorted(String.CASE_INSENSITIVE_ORDER)
+				.toList();
+
+		List<String> childNames = childrenOf(family, target.getUniqueId()).stream()
+				.map(childId -> safeName(Bukkit.getOfflinePlayer(childId)))
+				.sorted(String.CASE_INSENSITIVE_ORDER)
+				.toList();
+
+		UUID partnerId = marriageManager.getPartnerId(target.getUniqueId());
+		String partnerName = partnerId == null
+				? plugin.langManager().get("general.none")
+				: safeName(Bukkit.getOfflinePlayer(partnerId));
+
+		plugin.langManager().send(viewer, "family.info-header");
+		plugin.langManager().send(viewer, "family.info-player", Map.of(
+				"%player%", safeName(target)
+		));
+		plugin.langManager().send(viewer, "family.info-family", Map.of(
+				"%family%", family.name()
+		));
+		plugin.langManager().send(viewer, "family.info-role", Map.of(
+				"%role%", familyRole(family, target.getUniqueId())
+		));
+		plugin.langManager().send(viewer, "family.info-parents", Map.of(
+				"%parents%", parentNames.isEmpty() ? plugin.langManager().get("general.none") : String.join(", ", parentNames)
+		));
+		plugin.langManager().send(viewer, "family.info-children", Map.of(
+				"%children%", childNames.isEmpty() ? plugin.langManager().get("general.none") : String.join(", ", childNames)
+		));
+		plugin.langManager().send(viewer, "family.info-partner", Map.of(
+				"%partner%", partnerName
+		));
+	}
+
+	private String familyRole(Family family, UUID playerId) {
+		if (family.parentOne().equals(playerId) || family.parentTwo().equals(playerId)) {
+			return plugin.langManager().get("family.roles.parent");
+		}
+
+		if (family.adoptedChildren().contains(playerId)) {
+			return plugin.langManager().get("family.roles.adopted-child");
+		}
+
+		if (family.members().contains(playerId)) {
+			return plugin.langManager().get("family.roles.member");
+		}
+
+		return plugin.langManager().get("general.unknown");
 	}
 
 	private void sendCommandHelp(Player player, String command, String description) {
@@ -120,13 +272,6 @@ public class FamilyManager {
 			return;
 		}
 
-		UUID partnerId = marriageManager.getPartnerId(parent.getUniqueId());
-
-		if (partnerId == null) {
-			plugin.langManager().send(parent, "marriage.not-married");
-			return;
-		}
-
 		Player target = Bukkit.getPlayerExact(args[1]);
 
 		if (target == null) {
@@ -139,15 +284,55 @@ public class FamilyManager {
 			return;
 		}
 
+		UUID partnerId = marriageManager.getPartnerId(parent.getUniqueId());
+
+		if (plugin.configs().families().getBoolean("adoption.prevent-adopting-partner", true)
+				&& partnerId != null
+				&& partnerId.equals(target.getUniqueId())) {
+			plugin.langManager().send(parent, "family.cannot-adopt-partner");
+			return;
+		}
+
 		if (playerFamilies.containsKey(target.getUniqueId())) {
 			plugin.langManager().send(parent, "family.already-in-family");
 			return;
 		}
 
-		Family family = getOrCreateParentFamily(parent.getUniqueId(), partnerId);
+		Family family = getFamily(parent.getUniqueId());
 
-		if (!family.isParent(parent.getUniqueId())) {
+		if (family == null) {
+			if (partnerId == null) {
+				plugin.langManager().send(parent, "marriage.not-married");
+				return;
+			}
+
+			family = getOrCreateParentFamily(parent.getUniqueId(), partnerId);
+		}
+
+		boolean allowMemberAdoption = plugin.configs().families().getBoolean("adoption.allow-member-adoption", true);
+
+		if (!family.isParent(parent.getUniqueId()) && !allowMemberAdoption) {
 			plugin.langManager().send(parent, "family.not-parent");
+			return;
+		}
+
+		if (!family.isMember(parent.getUniqueId())) {
+			plugin.langManager().send(parent, "family.not-in-family");
+			return;
+		}
+
+		boolean requireMarriedParent = plugin.configs().families().getBoolean("adoption.require-married-parent", false);
+
+		if (requireMarriedParent && partnerId == null) {
+			plugin.langManager().send(parent, "family.adoption-requires-marriage");
+			return;
+		}
+
+		Set<UUID> parentIds = adoptionParentIds(family, parent.getUniqueId());
+
+		if (plugin.configs().families().getBoolean("adoption.prevent-cycles", true)
+				&& adoptionWouldCreateCycle(parentIds, target.getUniqueId())) {
+			plugin.langManager().send(parent, "family.adoption-would-create-cycle");
 			return;
 		}
 
@@ -167,6 +352,12 @@ public class FamilyManager {
 				target.getUniqueId(),
 				expiresAt
 		));
+
+		Bukkit.getScheduler().runTaskLater(
+				plugin,
+				() -> expireInvite(target.getUniqueId(), parent.getUniqueId()),
+				Math.max(1L, plugin.configs().families().getInt("invite-expire-seconds", 60)) * 20L
+		);
 
 		plugin.langManager().send(parent, "family.invite-sent", Map.of(
 				"%player%", target.getName(),
@@ -194,6 +385,33 @@ public class FamilyManager {
 		target.sendMessage(buttons);
 	}
 
+	private void expireInvite(UUID targetId, UUID inviterId) {
+		FamilyInvite invite = invites.get(targetId);
+
+		if (invite == null || !invite.inviter().equals(inviterId)) {
+			return;
+		}
+
+		if (!invite.expired()) {
+			return;
+		}
+
+		invites.remove(targetId);
+
+		Player target = Bukkit.getPlayer(targetId);
+		Player inviter = Bukkit.getPlayer(inviterId);
+
+		if (target != null) {
+			plugin.langManager().send(target, "family.invite-expired");
+		}
+
+		if (inviter != null) {
+			plugin.langManager().send(inviter, "family.invite-expired-sender", Map.of(
+					"%player%", target == null ? "Unknown" : target.getName()
+			));
+		}
+	}
+
 	private void accept(Player player) {
 		FamilyInvite invite = invites.remove(player.getUniqueId());
 
@@ -219,6 +437,27 @@ public class FamilyManager {
 			return;
 		}
 
+		Player inviter = Bukkit.getPlayer(invite.inviter());
+
+		if (inviter == null) {
+			plugin.langManager().send(player, "general.player-not-online");
+			return;
+		}
+
+		if (!family.isMember(invite.inviter())) {
+			plugin.langManager().send(player, "family.not-found");
+			return;
+		}
+
+		UUID inviterPartnerId = marriageManager.getPartnerId(invite.inviter());
+
+		if (plugin.configs().families().getBoolean("adoption.prevent-adopting-partner", true)
+				&& inviterPartnerId != null
+				&& inviterPartnerId.equals(player.getUniqueId())) {
+			plugin.langManager().send(player, "family.cannot-adopt-partner");
+			return;
+		}
+
 		int maxMembers = plugin.configs().families().getInt("max-members", 8);
 
 		if (family.members().size() >= maxMembers) {
@@ -226,8 +465,21 @@ public class FamilyManager {
 			return;
 		}
 
+		Set<UUID> parentIds = adoptionParentIds(family, invite.inviter());
+
+		if (parentIds.isEmpty()) {
+			plugin.langManager().send(player, "family.not-found");
+			return;
+		}
+
+		if (plugin.configs().families().getBoolean("adoption.prevent-cycles", true)
+				&& adoptionWouldCreateCycle(parentIds, player.getUniqueId())) {
+			plugin.langManager().send(player, "family.adoption-would-create-cycle");
+			return;
+		}
+
 		if (plugin.configs().families().getBoolean("tree.permanent-adoption-links", true)) {
-			family.addChild(player.getUniqueId());
+			family.addChild(player.getUniqueId(), parentIds);
 		} else {
 			family.members().add(player.getUniqueId());
 		}
@@ -237,6 +489,11 @@ public class FamilyManager {
 		plugin.dataManager().saveData();
 
 		plugin.langManager().send(player, "family.joined", Map.of(
+				"%family%", family.name()
+		));
+
+		broadcastToFamily(family, player.getUniqueId(), "family.member-joined", Map.of(
+				"%player%", player.getName(),
 				"%family%", family.name()
 		));
 
@@ -251,16 +508,17 @@ public class FamilyManager {
 			return;
 		}
 
-		player.sendMessage(color("&cYou denied the family invite."));
+		plugin.langManager().send(player, "family.invite-denied");
 
 		Player inviter = Bukkit.getPlayer(invite.inviter());
 
 		if (inviter != null) {
-			inviter.sendMessage(color("&c" + player.getName() + " denied your family invite."));
+			plugin.langManager().send(inviter, "family.invite-denied-sender", Map.of(
+					"%player%", player.getName()
+			));
 		}
 	}
-
-	private void leave(Player player) {
+	private void leave(Player player, String[] args) {
 		Family family = getFamily(player.getUniqueId());
 
 		if (family == null) {
@@ -273,16 +531,60 @@ public class FamilyManager {
 			return;
 		}
 
-		boolean preserveHistory = plugin.configs().families().getBoolean("tree.preserve-family-history-on-leave", true);
-		family.removeMember(player.getUniqueId(), preserveHistory);
+		if (args.length < 2 || !args[1].equalsIgnoreCase("confirm")) {
+			int seconds = plugin.configs().families().getInt("leave-confirm-seconds", 30);
+			leaveConfirmations.put(player.getUniqueId(), System.currentTimeMillis() + seconds * 1000L);
+
+			plugin.langManager().send(player, "family.leave-confirm", Map.of(
+					"%seconds%", String.valueOf(seconds)
+			));
+			sendLeaveButtons(player, seconds);
+			return;
+		}
+
+		long expiresAt = leaveConfirmations.getOrDefault(player.getUniqueId(), 0L);
+
+		if (System.currentTimeMillis() > expiresAt) {
+			leaveConfirmations.remove(player.getUniqueId());
+			plugin.langManager().send(player, "family.leave-confirm-expired");
+			return;
+		}
+
+		leaveConfirmations.remove(player.getUniqueId());
+
+		family.removeMember(player.getUniqueId(), plugin.configs().families().getBoolean("keep-history", true));
 		playerFamilies.remove(player.getUniqueId());
 
 		plugin.dataManager().saveData();
 
 		plugin.langManager().send(player, "family.left");
 
+		broadcastToFamily(family, player.getUniqueId(), "family.member-left", Map.of(
+				"%player%", player.getName(),
+				"%family%", family.name()
+		));
+
 		autoExportWeb();
 	}
+
+	private void sendLeaveButtons(Player player, int seconds) {
+		Component confirmButton = legacy(plugin.langManager().get("family.leave-confirm-button"))
+				.clickEvent(ClickEvent.runCommand("/family leave confirm"))
+				.hoverEvent(HoverEvent.showText(legacy(plugin.langManager().get("family.leave-confirm-hover"))));
+
+		Component cancelButton = legacy(plugin.langManager().get("family.leave-cancel-button"))
+				.clickEvent(ClickEvent.runCommand("/family"))
+				.hoverEvent(HoverEvent.showText(legacy(plugin.langManager().get("family.leave-cancel-hover"))));
+
+		player.sendMessage(legacy(plugin.langManager().get("family.leave-buttons-prefix"))
+				.append(confirmButton)
+				.append(legacy(plugin.langManager().get("family.leave-buttons-separator")))
+				.append(cancelButton)
+				.append(legacy(plugin.langManager().get("family.leave-buttons-expire", Map.of(
+						"%seconds%", String.valueOf(seconds)
+				)))));
+	}
+
 
 	private void kick(Player parent, String[] args) {
 		if (args.length < 2) {
@@ -315,17 +617,84 @@ public class FamilyManager {
 			return;
 		}
 
-		boolean preserveHistory = plugin.configs().families().getBoolean("tree.preserve-family-history-on-kick", true);
-		family.removeMember(targetId, preserveHistory);
+		if (args.length < 3 || !args[2].equalsIgnoreCase("confirm")) {
+			int seconds = plugin.configs().families().getInt("kick-confirm-seconds", 30);
+
+			kickConfirmations.put(parent.getUniqueId(), new PendingKick(
+					targetId,
+					family.id(),
+					System.currentTimeMillis() + seconds * 1000L
+			));
+
+			plugin.langManager().send(parent, "family.kick-confirm", Map.of(
+					"%player%", safeName(target),
+					"%seconds%", String.valueOf(seconds)
+			));
+
+			sendKickButtons(parent, safeName(target), seconds);
+			return;
+		}
+
+		PendingKick pendingKick = kickConfirmations.get(parent.getUniqueId());
+
+		if (pendingKick == null
+				|| !pendingKick.targetId().equals(targetId)
+				|| !pendingKick.familyId().equals(family.id())) {
+			plugin.langManager().send(parent, "family.kick-confirm-missing");
+			return;
+		}
+
+		if (pendingKick.expired()) {
+			kickConfirmations.remove(parent.getUniqueId());
+			plugin.langManager().send(parent, "family.kick-confirm-expired");
+			return;
+		}
+
+		kickConfirmations.remove(parent.getUniqueId());
+
+		family.removeMember(targetId, plugin.configs().families().getBoolean("keep-history", true));
 		playerFamilies.remove(targetId);
 
 		plugin.dataManager().saveData();
 
 		plugin.langManager().send(parent, "family.kicked", Map.of(
-				"%player%", target.getName() == null ? args[1] : target.getName()
+				"%player%", safeName(target)
+		));
+
+		Player kickedPlayer = Bukkit.getPlayer(targetId);
+
+		if (kickedPlayer != null) {
+			plugin.langManager().send(kickedPlayer, "family.you-were-kicked", Map.of(
+					"%family%", family.name()
+			));
+		}
+
+		broadcastToFamily(family, parent.getUniqueId(), "family.member-kicked", Map.of(
+				"%player%", safeName(target),
+				"%family%", family.name()
 		));
 
 		autoExportWeb();
+	}
+
+	private void sendKickButtons(Player parent, String targetName, int seconds) {
+		Component confirmButton = legacy(plugin.langManager().get("family.kick-confirm-button"))
+				.clickEvent(ClickEvent.runCommand("/family kick " + targetName + " confirm"))
+				.hoverEvent(HoverEvent.showText(legacy(plugin.langManager().get("family.kick-confirm-hover", Map.of(
+						"%player%", targetName
+				)))));
+
+		Component cancelButton = legacy(plugin.langManager().get("family.kick-cancel-button"))
+				.clickEvent(ClickEvent.runCommand("/family"))
+				.hoverEvent(HoverEvent.showText(legacy(plugin.langManager().get("family.kick-cancel-hover"))));
+
+		parent.sendMessage(legacy(plugin.langManager().get("family.kick-buttons-prefix"))
+				.append(confirmButton)
+				.append(legacy(plugin.langManager().get("family.kick-buttons-separator")))
+				.append(cancelButton)
+				.append(legacy(plugin.langManager().get("family.kick-buttons-expire", Map.of(
+						"%seconds%", String.valueOf(seconds)
+				)))));
 	}
 
 	private void rename(Player parent, String[] args) {
@@ -366,6 +735,11 @@ public class FamilyManager {
 		plugin.dataManager().saveData();
 
 		plugin.langManager().send(parent, "family.renamed", Map.of(
+				"%family%", name
+		));
+
+		broadcastToFamily(family, parent.getUniqueId(), "family.family-renamed", Map.of(
+				"%player%", parent.getName(),
 				"%family%", name
 		));
 
@@ -467,7 +841,6 @@ public class FamilyManager {
 				.hoverEvent(HoverEvent.showText(legacy(color("&7Open &f" + url))));
 
 		player.sendMessage(message);
-		player.sendMessage(color("&8" + url));
 	}
 
 	private String configuredPublicUrl() {
@@ -482,45 +855,126 @@ public class FamilyManager {
 
 		if (family == null) {
 			plugin.langManager().send(player, "family.not-in-family");
-			sendCommandHelp(player, "/family help", "View family commands.");
 			return;
 		}
 
-		OfflinePlayer parentOne = Bukkit.getOfflinePlayer(family.parentOne());
-		OfflinePlayer parentTwo = Bukkit.getOfflinePlayer(family.parentTwo());
+		plugin.langManager().send(player, "family.profile-header", Map.of(
+				"%family%", family.name()
+		));
 
-		player.sendMessage(color("&d&m                              "));
-		player.sendMessage(color("&d&l" + family.name()));
-		player.sendMessage(color("&7Parents: &f" + safeName(parentOne) + " &d❤ &f" + safeName(parentTwo)));
-		player.sendMessage(color("&7Members: &f" + family.members().size()));
+		plugin.langManager().send(player, "family.profile-parents", Map.of(
+				"%parent_one%", safeName(Bukkit.getOfflinePlayer(family.parentOne())),
+				"%parent_two%", safeName(Bukkit.getOfflinePlayer(family.parentTwo()))
+		));
 
-		Component actions = legacy(color("&7Actions: "))
-				.append(actionButton("&d[TREE]", "/family tree", "&7Open your family tree"))
-				.append(legacy(color(" ")))
-				.append(actionButton("&b[CHAT]", "/family chat ", "&7Send a family chat message"))
-				.append(legacy(color(" ")))
-				.append(actionButton("&e[HELP]", "/family help", "&7View family commands"));
+		plugin.langManager().send(player, "family.tree-header");
 
-		player.sendMessage(actions);
+		List<UUID> rootChildren = rootChildren(family);
 
-		if (family.isParent(player.getUniqueId())) {
-			Component parentActions = legacy(color("&7Parent Actions: "))
-					.append(actionButton("&a[INVITE]", "/family invite ", "&7Invite/adopt a player"))
-					.append(legacy(color(" ")))
-					.append(actionButton("&6[RENAME]", "/family rename ", "&7Rename your family"))
-					.append(legacy(color(" ")))
-					.append(actionButton("&c[KICK]", "/family kick ", "&7Kick a family member"));
+		if (rootChildren.isEmpty()) {
+			plugin.langManager().send(player, "family.tree-empty");
+		} else {
+			Set<UUID> visited = new HashSet<>();
 
-			player.sendMessage(parentActions);
+			for (UUID childId : rootChildren) {
+				sendTreeLine(player, family, childId, 0, visited);
+			}
 		}
 
-		player.sendMessage(color("&d&m                              "));
+		List<String> otherMembers = otherFamilyMembers(family).stream()
+				.map(memberId -> safeName(Bukkit.getOfflinePlayer(memberId)))
+				.sorted(String.CASE_INSENSITIVE_ORDER)
+				.toList();
+
+		plugin.langManager().send(player, "family.profile-other-members", Map.of(
+				"%members%", otherMembers.isEmpty() ? plugin.langManager().get("general.none") : String.join(", ", otherMembers)
+		));
 	}
 
-	private Component actionButton(String text, String command, String hover) {
-		return legacy(color(text))
-				.clickEvent(ClickEvent.suggestCommand(command))
-				.hoverEvent(HoverEvent.showText(legacy(color(hover))));
+	private void sendTreeLine(Player viewer, Family family, UUID playerId, int depth, Set<UUID> visited) {
+		if (!visited.add(playerId)) {
+			return;
+		}
+
+		String indent = "  ".repeat(Math.max(0, depth));
+		String prefix = depth == 0 ? "&d- " : "&7- ";
+		String name = safeName(Bukkit.getOfflinePlayer(playerId));
+
+		plugin.langManager().send(viewer, "family.tree-line", Map.of(
+				"%indent%", indent,
+				"%prefix%", color(prefix),
+				"%player%", name
+		));
+
+		for (UUID childId : childrenOf(family, playerId)) {
+			sendTreeLine(viewer, family, childId, depth + 1, visited);
+		}
+	}
+
+	private List<UUID> rootChildren(Family family) {
+		Set<UUID> rootParents = Set.of(family.parentOne(), family.parentTwo());
+
+		return family.childParents().entrySet().stream()
+				.filter(entry -> entry.getValue().stream().anyMatch(rootParents::contains))
+				.map(Map.Entry::getKey)
+				.sorted(this::comparePlayerNames)
+				.toList();
+	}
+
+	private List<UUID> childrenOf(Family family, UUID parentId) {
+		return family.childParents().entrySet().stream()
+				.filter(entry -> entry.getValue().contains(parentId))
+				.map(Map.Entry::getKey)
+				.sorted(this::comparePlayerNames)
+				.toList();
+	}
+
+	private List<UUID> otherFamilyMembers(Family family) {
+		Set<UUID> linkedChildren = family.childParents().keySet();
+		Set<UUID> rootParents = Set.of(family.parentOne(), family.parentTwo());
+
+		return family.members().stream()
+				.filter(memberId -> !rootParents.contains(memberId))
+				.filter(memberId -> !linkedChildren.contains(memberId))
+				.sorted(this::comparePlayerNames)
+				.toList();
+	}
+
+	private int comparePlayerNames(UUID firstId, UUID secondId) {
+		String firstName = safeName(Bukkit.getOfflinePlayer(firstId));
+		String secondName = safeName(Bukkit.getOfflinePlayer(secondId));
+
+		return firstName.compareToIgnoreCase(secondName);
+	}
+
+	private Set<UUID> adoptionParentIds(Family family, UUID adopterId) {
+		Set<UUID> parentIds = new HashSet<>();
+
+		if (family.isMember(adopterId)) {
+			parentIds.add(adopterId);
+		}
+
+		UUID partnerId = marriageManager.getPartnerId(adopterId);
+
+		if (partnerId != null && family.isMember(partnerId)) {
+			parentIds.add(partnerId);
+		}
+
+		return parentIds;
+	}
+
+	private boolean adoptionWouldCreateCycle(Set<UUID> parentIds, UUID childId) {
+		if (parentIds.contains(childId)) {
+			return true;
+		}
+
+		for (UUID parentId : parentIds) {
+			if (isAncestorOf(childId, parentId)) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	private Family getOrCreateParentFamily(UUID parentOne, UUID parentTwo) {
@@ -888,6 +1342,20 @@ public class FamilyManager {
 		return ancestors;
 	}
 
+	private void broadcastToFamily(Family family, UUID excludedPlayerId, String langPath, Map<String, String> placeholders) {
+		for (UUID memberId : family.members()) {
+			if (memberId.equals(excludedPlayerId)) {
+				continue;
+			}
+
+			Player member = Bukkit.getPlayer(memberId);
+
+			if (member != null) {
+				plugin.langManager().send(member, langPath, placeholders);
+			}
+		}
+	}
+
 	public Set<UUID> getDescendants(UUID playerId) {
 		Set<UUID> descendants = new HashSet<>();
 		Queue<UUID> queue = new ArrayDeque<>(getChildren(playerId));
@@ -906,5 +1374,12 @@ public class FamilyManager {
 	}
 
 	private record FamilyDistanceNode(UUID playerId, int distance) {
+	}
+
+	private record PendingKick(UUID targetId, String familyId, long expiresAt) {
+
+		private boolean expired() {
+			return System.currentTimeMillis() > expiresAt;
+		}
 	}
 }

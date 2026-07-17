@@ -25,6 +25,7 @@ public class PluginConfigManager {
 	private FileConfiguration leaderboardsConfig;
 	private FileConfiguration notificationsConfig;
 	private FileConfiguration familiesConfig;
+	private FileConfiguration backpackConfig;
 
 	public PluginConfigManager(MarriagePlus plugin) {
 		this.plugin = plugin;
@@ -32,6 +33,7 @@ public class PluginConfigManager {
 
 	public void setup() {
 		storageConfig = loadConfig("configs/storage.yml");
+		backpackConfig = loadConfig("configs/backpack.yml");
 		actionsConfig = loadConfig("configs/actions.yml");
 		achievementsConfig = loadConfig("configs/achievements.yml");
 		questsConfig = loadConfig("configs/quests.yml");
@@ -127,5 +129,8 @@ public class PluginConfigManager {
 
 	public FileConfiguration families() {
 		return familiesConfig;
+	}
+	public FileConfiguration backpack() {
+		return backpackConfig;
 	}
 }

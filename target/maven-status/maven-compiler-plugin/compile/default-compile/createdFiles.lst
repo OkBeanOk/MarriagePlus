@@ -30,6 +30,7 @@ com\okbeanok\marriagePlus\services\CooldownManager.class
 com\okbeanok\marriagePlus\services\gui\MarriageGuiManager.class
 com\okbeanok\marriagePlus\services\notifications\NotificationManager.class
 com\okbeanok\marriagePlus\listeners\QuestListener.class
+com\okbeanok\marriagePlus\services\ceremonies\CeremonyManager$CeremonyInvite.class
 com\okbeanok\marriagePlus\services\leaderboards\LeaderboardManager.class
 com\okbeanok\marriagePlus\listeners\MarriageGuiListener.class
 com\okbeanok\marriagePlus\listeners\PlayerConnectionListener.class
