@@ -20,8 +20,8 @@ public class UpdateChecker {
 	private final MarriagePlus plugin;
 
 	private boolean updateAvailable;
-	private String latestVersion = "1.4.6";
-	private String currentVersion = "1.4.5";
+	private String latestVersion = "1.4.6-B";
+	private String currentVersion = "1.4.6-A";
 
 	public UpdateChecker(MarriagePlus plugin) {
 		this.plugin = plugin;

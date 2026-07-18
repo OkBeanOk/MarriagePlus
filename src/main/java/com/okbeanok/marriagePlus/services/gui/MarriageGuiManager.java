@@ -1,6 +1,7 @@
 package com.okbeanok.marriagePlus.services.gui;
 
 import com.okbeanok.marriagePlus.MarriagePlus;
+import com.okbeanok.marriagePlus.models.PartnerMail;
 import com.okbeanok.marriagePlus.services.MarriageManager;
 import org.bukkit.*;
 import org.bukkit.configuration.ConfigurationSection;
@@ -11,6 +12,7 @@ import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 import static com.okbeanok.marriagePlus.utils.TextUtils.color;
@@ -19,6 +21,7 @@ public class MarriageGuiManager {
 
 	private static final long MILLIS_PER_DAY = 86_400_000L;
 	private static final String HOMES_MENU_TITLE = "&d❤ &8Couple Homes";
+	private static final String MAIL_MENU_TITLE = "&d❤ &8Partner Mail";
 
 	private final MarriagePlus plugin;
 	private final MarriageManager marriageManager;
@@ -60,6 +63,100 @@ public class MarriageGuiManager {
 		}
 
 		player.openInventory(inventory);
+	}
+	public void openMailMenu(Player player) {
+		if (!plugin.configs().gui().getBoolean("enabled", true)) {
+			plugin.mailManager().mailCommand(player, new String[]{"mail", "inbox"});
+			return;
+		}
+
+		if (!marriageManager.isMarried(player.getUniqueId())) {
+			plugin.langManager().send(player, "marriage.not-married");
+			return;
+		}
+
+		Inventory inventory = Bukkit.createInventory(null, 54, color(MAIL_MENU_TITLE));
+		fillInventory(inventory);
+
+		List<PartnerMail> inbox = plugin.mailManager().inboxes().getOrDefault(player.getUniqueId(), new ArrayList<>());
+
+		if (inbox.isEmpty()) {
+			inventory.setItem(22, simpleItem(
+					Material.BARRIER,
+					"&cNo Partner Mail",
+					List.of(
+							"&7You do not have any partner mail.",
+							"",
+							"&7Your partner can send mail with",
+							"&f/marry mail send <message>&7."
+					),
+					false
+			));
+		} else {
+			int[] slots = {
+					10, 11, 12, 13, 14, 15, 16,
+					19, 20, 21, 22, 23, 24, 25,
+					28, 29, 30, 31, 32, 33, 34
+			};
+
+			int index = 0;
+
+			for (PartnerMail mail : inbox) {
+				if (index >= slots.length) {
+					break;
+				}
+
+				inventory.setItem(slots[index], mailItem(mail, index + 1));
+				index++;
+			}
+		}
+
+		inventory.setItem(45, simpleItem(
+				Material.ARROW,
+				"&d← &fBack",
+				List.of("&7Return to the marriage menu."),
+				false
+		));
+
+		inventory.setItem(49, simpleItem(
+				Material.BARRIER,
+				"&c✕ &fClose",
+				List.of("&7Close this menu."),
+				false
+		));
+
+		player.openInventory(inventory);
+	}
+
+	public boolean isMailMenuTitle(String title) {
+		return title.equals(color(MAIL_MENU_TITLE));
+	}
+
+	private ItemStack mailItem(PartnerMail mail, int mailNumber) {
+		List<String> lore = new ArrayList<>();
+		lore.add("&8Partner mail");
+		lore.add("");
+		lore.add("&7From: &f" + mail.senderName());
+		lore.add("&7Sent: &f" + formatMailTime(mail.sentAt()));
+		lore.add("");
+		lore.add("&f" + mail.message());
+		lore.add("");
+		lore.add("&aLeft-click to print in chat.");
+		lore.add("&cShift-click to delete.");
+
+		return simpleItem(
+				Material.PAPER,
+				"&e✉ &fMail #" + mailNumber,
+				lore,
+				true
+		);
+	}
+
+	private String formatMailTime(long timestamp) {
+		String timestampFormat = plugin.configs().mail().getString("timestamp-format", "yyyy-MM-dd HH:mm");
+		SimpleDateFormat dateFormat = new SimpleDateFormat(timestampFormat);
+
+		return dateFormat.format(new Date(timestamp));
 	}
 
 	public void openHomesMenu(Player player) {

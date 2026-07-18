@@ -4,7 +4,7 @@
   <groupId>com.okbeanok</groupId>
   <artifactId>MarriagePlus</artifactId>
   <name>MarriagePlus</name>
-  <version>1.4.5</version>
+  <version>1.4.6-A</version>
   <build>
     <defaultGoal>clean package</defaultGoal>
     <resources>

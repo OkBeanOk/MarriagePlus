@@ -1,0 +1,20 @@
+#Backpack Configuration
+#Yes.... i know this configuration is small at the moment but there will be updates for backpacks in the near future!!!!
+
+# Partner backpack settings.
+# Modes:
+# PLAYER_OWNED - each player owns their own backpack, partner opens it if allowed.
+# SHARED_COUPLE - both partners open the same shared couple backpack.
+mode: PLAYER_OWNED
+
+# Size must be a multiple of 9 between 9 and 54.
+size: 27
+
+# Notifies the backpack owner when their partner opens it.
+notify-owner-on-open: true
+
+# Notifies the backpack owner when an admin opens it.
+notify-owner-on-admin-open: true
+
+# If true, partners can view backpacks but cannot modify contents.
+read-only: false

@@ -6,7 +6,7 @@
 
     <groupId>com.okbeanok</groupId>
     <artifactId>MarriagePlus</artifactId>
-    <version>1.4.5</version>
+    <version>1.4.6-B</version>
     <packaging>jar</packaging>
 
     <name>MarriagePlus</name>

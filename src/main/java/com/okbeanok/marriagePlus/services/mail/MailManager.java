@@ -6,16 +6,17 @@ import com.okbeanok.marriagePlus.services.MarriageManager;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
+
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
+
+import static com.okbeanok.marriagePlus.utils.TextUtils.legacy;
 
 public class MailManager {
+	private static final int CHAT_MAIL_PER_PAGE = 8;
 
 	private final MarriagePlus plugin;
 	private final MarriageManager marriageManager;
@@ -32,15 +33,16 @@ public class MailManager {
 
 	public void mailCommand(Player player, String[] args) {
 		if (args.length < 2) {
-			sendUsage(player);
+			plugin.marriageGuiManager().openMailMenu(player);
 			return;
 		}
 
 		switch (args[1].toLowerCase()) {
 			case "send" -> sendMail(player, args);
-			case "read" -> readMail(player);
+			case "inbox", "list" -> plugin.marriageGuiManager().openMailMenu(player);
+			case "delete" -> deleteMail(player, args);
 			case "clear" -> clearMail(player);
-			default -> sendUsage(player);
+			default -> plugin.marriageGuiManager().openMailMenu(player);
 		}
 	}
 
@@ -97,16 +99,13 @@ public class MailManager {
 			return;
 		}
 
-		plugin.notificationManager().notifyPartner(player, "mail");
-		plugin.langManager().send(partner, "mail.read-hint");
-
 		plugin.langManager().send(partner, "mail.received", Map.of(
 				"%player%", player.getName()
 		));
 		plugin.langManager().send(partner, "mail.read-hint");
 	}
 
-	private void readMail(Player player) {
+	private void readMail(Player player, String[] args) {
 		List<PartnerMail> inbox = inboxes.getOrDefault(player.getUniqueId(), new ArrayList<>());
 
 		if (inbox.isEmpty()) {
@@ -114,29 +113,158 @@ public class MailManager {
 			return;
 		}
 
-		boolean showTimestamps = plugin.configs().mail().getBoolean("show-read-timestamps", true);
-		String timestampFormat = plugin.configs().mail().getString("timestamp-format", "yyyy-MM-dd HH:mm");
-		SimpleDateFormat dateFormat = new SimpleDateFormat(timestampFormat);
+		if (args.length >= 3) {
+			readSingleMail(player, args, inbox);
+			return;
+		}
 
-		plugin.langManager().send(player, "mail.header");
+		listMail(player, new String[] {"mail", "inbox"});
+	}
 
-		for (int index = 0; index < inbox.size(); index++) {
+	private void readSingleMail(Player player, String[] args, List<PartnerMail> inbox) {
+		Integer mailNumber = parseMailNumber(player, args[2]);
+
+		if (mailNumber == null) {
+			return;
+		}
+
+		if (mailNumber < 1 || mailNumber > inbox.size()) {
+			plugin.langManager().send(player, "mail.invalid-number");
+			return;
+		}
+
+		PartnerMail mail = inbox.get(mailNumber - 1);
+
+		plugin.langManager().send(player, "mail.message-header", Map.of(
+				"%number%", String.valueOf(mailNumber)
+		));
+		plugin.langManager().send(player, "mail.message-from", Map.of(
+				"%sender%", mail.senderName()
+		));
+		plugin.langManager().send(player, "mail.message-body", Map.of(
+				"%message%", mail.message()
+		));
+
+		if (plugin.configs().mail().getBoolean("show-read-timestamps", true)) {
+			plugin.langManager().send(player, "mail.sent-at", Map.of(
+					"%time%", formatTime(mail.sentAt())
+			));
+		}
+	}
+
+	private void listMail(Player player, String[] args) {
+		List<PartnerMail> inbox = inboxes.getOrDefault(player.getUniqueId(), new ArrayList<>());
+
+		if (inbox.isEmpty()) {
+			plugin.langManager().send(player, "mail.empty");
+			return;
+		}
+
+		int requestedPage = 1;
+
+		if (args.length >= 3) {
+			try {
+				requestedPage = Integer.parseInt(args[2]);
+			} catch (NumberFormatException exception) {
+				plugin.langManager().send(player, "mail.invalid-page");
+				return;
+			}
+		}
+
+		int maxPage = Math.max(1, (int) Math.ceil(inbox.size() / (double) CHAT_MAIL_PER_PAGE));
+		int page = Math.max(1, Math.min(requestedPage, maxPage));
+		int start = (page - 1) * CHAT_MAIL_PER_PAGE;
+		int end = Math.min(start + CHAT_MAIL_PER_PAGE, inbox.size());
+
+		plugin.langManager().send(player, "mail.header-page", Map.of(
+				"%page%", String.valueOf(page),
+				"%max_page%", String.valueOf(maxPage)
+		));
+
+		for (int index = start; index < end; index++) {
 			PartnerMail mail = inbox.get(index);
 
-			plugin.langManager().send(player, "mail.line", Map.of(
-					"%number%", String.valueOf(index + 1),
-					"%sender%", mail.senderName(),
-					"%message%", mail.message()
-			));
+			sendClickableMailLine(player, mail, index + 1);
 
-			if (showTimestamps) {
+			if (plugin.configs().mail().getBoolean("show-read-timestamps", true)) {
 				plugin.langManager().send(player, "mail.sent-at", Map.of(
-						"%time%", dateFormat.format(new Date(mail.sentAt()))
+						"%time%", formatTime(mail.sentAt())
 				));
 			}
 		}
 
-		plugin.langManager().send(player, "mail.clear-hint");
+		plugin.langManager().send(player, "mail.list-hint");
+
+		if (page < maxPage) {
+			plugin.langManager().send(player, "mail.next-page-hint", Map.of(
+					"%page%", String.valueOf(page + 1)
+			));
+		}
+	}
+
+	private void sendClickableMailLine(Player player, PartnerMail mail, int mailNumber) {
+		Component mailLine = legacy(plugin.langManager().get("mail.line", Map.of(
+				"%number%", String.valueOf(mailNumber),
+				"%sender%", mail.senderName(),
+				"%message%", mail.message()
+		)))
+				.clickEvent(ClickEvent.runCommand("/marry mail read " + mailNumber))
+				.hoverEvent(HoverEvent.showText(legacy(plugin.langManager().get("mail.list-line-hover", Map.of(
+						"%number%", String.valueOf(mailNumber)
+				)))));
+
+		Component deleteButton = legacy(plugin.langManager().get("mail.list-delete-button"))
+				.clickEvent(ClickEvent.suggestCommand("/marry mail delete " + mailNumber))
+				.hoverEvent(HoverEvent.showText(legacy(plugin.langManager().get("mail.list-delete-hover", Map.of(
+						"%number%", String.valueOf(mailNumber)
+				)))));
+
+		player.sendMessage(mailLine.append(legacy(" ")).append(deleteButton));
+	}
+
+	private void deleteMail(Player player, String[] args) {
+		if (args.length < 3) {
+			plugin.langManager().send(player, "mail.usage-delete");
+			return;
+		}
+
+		Integer mailNumber = parseMailNumber(player, args[2]);
+
+		if (mailNumber == null) {
+			return;
+		}
+
+		List<PartnerMail> inbox = inboxes.get(player.getUniqueId());
+
+		if (inbox == null || mailNumber < 1 || mailNumber > inbox.size()) {
+			plugin.langManager().send(player, "mail.invalid-number");
+			return;
+		}
+
+		inbox.remove(mailNumber - 1);
+
+		if (inbox.isEmpty()) {
+			inboxes.remove(player.getUniqueId());
+		}
+
+		plugin.dataManager().saveData();
+		plugin.langManager().send(player, "mail.deleted");
+	}
+
+	private Integer parseMailNumber(Player player, String input) {
+		try {
+			return Integer.parseInt(input);
+		} catch (NumberFormatException exception) {
+			plugin.langManager().send(player, "mail.invalid-number");
+			return null;
+		}
+	}
+
+	private String formatTime(long timestamp) {
+		String timestampFormat = plugin.configs().mail().getString("timestamp-format", "yyyy-MM-dd HH:mm");
+		SimpleDateFormat dateFormat = new SimpleDateFormat(timestampFormat);
+
+		return dateFormat.format(new Date(timestamp));
 	}
 
 	private void clearMail(Player player) {
@@ -173,6 +301,7 @@ public class MailManager {
 	private void sendUsage(Player player) {
 		plugin.langManager().send(player, "mail.usage-send");
 		plugin.langManager().send(player, "mail.usage-read");
+		plugin.langManager().send(player, "mail.usage-delete");
 		plugin.langManager().send(player, "mail.usage-clear");
 	}
 }

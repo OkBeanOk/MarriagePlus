@@ -5,11 +5,13 @@ settings:
   nsfw-actions-enabled: false
   partner-join-notifications: true
 
+
   update-checker:
     enabled: true
     notify-admins-on-join: true
 
   proposal-expire-seconds: 60
+  proposal-cooldown-seconds: 15
   divorce-confirm-seconds: 30
 
   cooldowns:
@@ -34,6 +36,7 @@ titles:
 homes:
   max-homes-default: 3
   max-name-length: 16
+  delete-confirm-seconds: 30
 
 nicknames:
   max-length: 24
@@ -41,17 +44,6 @@ nicknames:
 announcements:
   max-length: 120
   format: "&c❤ &d%player% &7& &d%partner%&7: &f%message%"
-
-compliments:
-  mode: PUBLIC
-  messages:
-    - "&d%player% thinks %partner% is amazing!"
-    - "&d%player% says %partner% makes every day better."
-    - "&d%player% thinks %partner% has the best smile."
-    - "&d%player% feels lucky to be married to %partner%."
-    - "&d%player% says %partner_subject% loves how kind %partner% is."
-    - "&d%player% thinks %partner% is the cutest."
-    - "&d%player% says %partner% is %player_possessive% favorite person."
 
 xp:
   level-base-required: 100

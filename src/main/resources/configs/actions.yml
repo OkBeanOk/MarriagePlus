@@ -87,6 +87,21 @@ holdhands:
     - "&f%player%&d and &f%partner%&d walked together hand in hand."
     - "&f%player%&d gently held &f%partner%&d's hand."
 
+compliment:
+  display-name: "compliment"
+  description: "Send your partner a sweet compliment"
+  permission: "marriageplus.command.actions"
+  particle: "HEART"
+  sound: "entity.player.levelup"
+  broadcast-messages:
+    - "&f%player%&d thinks &f%partner%&d is amazing!"
+    - "&f%player%&d says &f%partner%&d makes every day better."
+    - "&f%player%&d thinks &f%partner%&d has the best smile."
+    - "&f%player%&d feels lucky to be married to &f%partner%&d."
+    - "&f%player%&d says &f%partner_subject%&d loves how kind %partner% is."
+    - "&f%player%&d thinks &f%partner%&d is the cutest."
+    - "&f%player%&d says &f%partner%&d is %player_possessive% favorite person."
+
 foreheadkiss:
   display-name: "forehead kiss"
   description: "Give your partner a forehead kiss"

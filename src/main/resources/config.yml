@@ -45,17 +45,6 @@ announcements:
   max-length: 120
   format: "&c❤ &d%player% &7& &d%partner%&7: &f%message%"
 
-compliments:
-  mode: PUBLIC
-  messages:
-    - "&d%player% thinks %partner% is amazing!"
-    - "&d%player% says %partner% makes every day better."
-    - "&d%player% thinks %partner% has the best smile."
-    - "&d%player% feels lucky to be married to %partner%."
-    - "&d%player% says %partner_subject% loves how kind %partner% is."
-    - "&d%player% thinks %partner% is the cutest."
-    - "&d%player% says %partner% is %player_possessive% favorite person."
-
 xp:
   level-base-required: 100
   level-multiplier: 1.25

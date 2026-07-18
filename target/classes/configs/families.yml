@@ -1,8 +1,15 @@
+#MarriagePlus Families Configuration
+
 enabled: true
+
+
+invite-expire-seconds: 60
+leave-confirm-seconds: 30
+kick-confirm-seconds: 30
 
 max-members: 8
 max-name-length: 24
-invite-expire-seconds: 60
+
 allow-family-chat: true
 default-family-name: "%parent_one% & %parent_two%'s Family"
 
@@ -12,6 +19,12 @@ adoption:
 
   # If true, adopters must be married before they can adopt.
   require-married-parent: false
+
+  # Prevent adopting your spouse/partner.
+  prevent-adopting-partner: true
+
+  # Prevent adoption links that would create impossible/cyclic family trees.
+  prevent-cycles: true
 
 chat:
   format: "&d[Family] &f%player%&7: &f%message%"

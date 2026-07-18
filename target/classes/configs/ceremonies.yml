@@ -1,12 +1,13 @@
 # MarriagePlus Ceremony Configuration
 
 enabled: true
-
-invite-expire-seconds: 120
+# Radius in which your partner must be to start the ceremony
 required-radius: 12.0
-
+# Time remaining till offer expires
+invite-expire-seconds: 120
 # Prevent players from repeatedly starting ceremonies.
 cooldown-seconds: 86400
+countdown-seconds: 5
 
 broadcast: true
 broadcast-message: "&d❤ &f%player% &7and &f%partner% &dcelebrated their marriage ceremony!"
@@ -22,6 +23,14 @@ effects:
   particle-count: 35
   sound: "ENTITY_FIREWORK_ROCKET_TWINKLE"
   fireworks: true
+
+vows:
+  mode: PUBLIC
+  random: false
+  random-count: 1
+  custom-enabled: true
+  custom-max-length: 160
+  custom-format: "&d%player% vows: &f%message%"
 
 messages:
   vows:

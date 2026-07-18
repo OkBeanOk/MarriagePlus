@@ -49,7 +49,7 @@ public class MarryCommand implements TabExecutor {
 	private static final Set<String> RESERVED_COMMANDS = Set.of(
 			"help", "menu", "gui", "me", "accept", "deny", "decline", "divorce", "list", "partner", "profile", "status",
 			"quests", "tp", "sethome", "home", "homes", "delhome", "deletehome", "renamehome", "defaulthome", "chat", "listenchat", "pvpon", "pvpoff",
-			"announce", "compliment", "mail", "note", "lovenote", "lovenotes", "ring", "ceremony", "family",
+			"announce", "mail", "note", "lovenote", "lovenotes", "ring", "ceremony", "family",
 			"leaderboard", "leaderboards", "top", "level", "xp", "achievements", "gift", "backpack",
 			"anniversary", "pronouns", "title", "nickname", "requests", "block", "unblock", "blocklist",
 			"admin", "priest", "reload"
@@ -144,7 +144,6 @@ public class MarryCommand implements TabExecutor {
 			case "pvpon" -> playerCommand(sender, "marriageplus.command.pvp", player -> marriageManager.setPartnerPvp(player, true));
 			case "pvpoff" -> playerCommand(sender, "marriageplus.command.pvp", player -> marriageManager.setPartnerPvp(player, false));
 			case "announce" -> playerCommand(sender, "marriageplus.command.announce", player -> announce(player, args));
-			case "compliment" -> playerCommand(sender, "marriageplus.command.compliment", this::compliment);
 			case "family" -> playerCommand(sender, "marriageplus.command.family", player -> plugin.familyManager().familyCommand(player, args));
 			case "mail" -> playerCommand(sender, "marriageplus.command.mail", player -> mailManager.mailCommand(player, args));
 			case "level" -> playerCommand(sender, "marriageplus.command.level", marriageXpManager::levelCommand);
@@ -188,7 +187,6 @@ public class MarryCommand implements TabExecutor {
 		addIfAllowed(sender, completions, "marriageplus.command.tp", "tp");
 		addIfAllowed(sender, completions, "marriageplus.command.chat", "chat");
 		addIfAllowed(sender, completions, "marriageplus.command.announce", "announce");
-		addIfAllowed(sender, completions, "marriageplus.command.compliment", "compliment");
 		addIfAllowed(sender, completions, "marriageplus.command.family", "family");
 		addIfAllowed(sender, completions, "marriageplus.command.mail", "mail");
 		addIfAllowed(sender, completions, "marriageplus.command.lovenotes", "note");
@@ -283,10 +281,10 @@ public class MarryCommand implements TabExecutor {
 			case "me", "priest", "block", "unblock", "profile" -> filter(onlinePlayerNames(), input);
 			case "divorce" -> completeDivorceSecondArg(sender, input);
 			case "ring" -> filter(List.of("replace"), input);
-			case "mail" -> filter(List.of("send", "read", "clear"), input);
+			case "mail" -> filter(List.of("send", "inbox", "list", "delete", "clear"), input);
 			case "ceremony" -> filter(List.of("start", "accept", "cancel", "status", "vow"), input);
 			case "leaderboard", "leaderboards", "top" -> filter(List.of("level", "xp", "longest", "achievements"), input);
-			case "note", "lovenote", "lovenotes" -> filter(List.of("send", "list", "inbox", "read", "delete"), input);
+			case "note", "lovenote", "lovenotes" -> filter(List.of("send", "list", "inbox", "read", "unread", "delete"), input);
 			case "anniversary", "quests" -> filter(List.of("claim"), input);
 			case "status" -> filter(List.of("set", "clear"), input);
 			case "achievements" -> filter(List.of("partner"), input);
@@ -311,6 +309,10 @@ public class MarryCommand implements TabExecutor {
 
 		if (root.equals("admin") && sub.equals("backpack")) {
 			return filter(onlinePlayerNames(), input);
+		}
+
+		if (root.equals("mail") && (sub.equals("inbox") || sub.equals("list"))) {
+			return filter(List.of("1", "2", "3", "4", "5"), input);
 		}
 
 		if ((root.equals("note") || root.equals("lovenote") || root.equals("lovenotes"))
@@ -401,16 +403,14 @@ public class MarryCommand implements TabExecutor {
 				help("/marry pvpon", "pvpon"),
 				help("/marry pvpoff", "pvpoff"),
 				help("/marry announce <message>", "announce", "/marry announce "),
-				help("/marry compliment", "compliment"),
 				help("/marry mail send <message>", "mail-send", "/marry mail send "),
-				help("/marry mail read", "mail-read"),
+				help("/marry mail inbox", "mail-inbox"),
+				help("/marry mail read <id>", "mail-read-id", "/marry mail read "),
+				help("/marry mail delete <id>", "mail-delete", "/marry mail delete "),
 				help("/marry mail clear", "mail-clear"),
-				help("/marry mail send <message>", "mail-send", "/marry mail send "),
-				help("/marry mail read", "mail-read"),
-				help("/marry mail clear", "mail-clear"),
-				help("/marry note", "love-note-list"),
 				help("/marry note inbox", "love-note-inbox"),
 				help("/marry note read <id>", "love-note-read", "/marry note read "),
+				help("/marry note unread <id>", "love-note-unread", "/marry note unread "),
 				help("/marry note delete <id>", "love-note-delete", "/marry note delete "),
 				help("/marry note send <message>", "love-note-send", "/marry note send "),
 				help("/marry menu", "menu"),
@@ -791,38 +791,6 @@ public class MarryCommand implements TabExecutor {
 
 		cooldownManager.setCooldown(player, "announce", plugin.getConfig().getInt("settings.cooldowns.announce-seconds", 60));
 		marriageXpManager.addXp(player, "actions");
-		Bukkit.broadcastMessage(color(message));
-	}
-
-	private void compliment(Player player) {
-		if (cooldownManager.isOnCooldown(player, "compliment")) {
-			return;
-		}
-
-		Player partner = marriageManager.getOnlinePartner(player);
-
-		if (partner == null) {
-			return;
-		}
-
-		List<String> compliments = plugin.getConfig().getStringList("compliments.messages");
-
-		if (compliments.isEmpty()) {
-			plugin.langManager().send(player, "compliment.none-configured");
-			return;
-		}
-
-		String message = applyCouplePlaceholders(random(compliments), player, partner);
-
-		cooldownManager.setCooldown(player, "compliment", plugin.getConfig().getInt("settings.cooldowns.compliment-seconds", 30));
-		marriageXpManager.addXp(player, "actions");
-
-		if (plugin.getConfig().getString("compliments.mode", "PUBLIC").equalsIgnoreCase("PRIVATE")) {
-			player.sendMessage(color(message));
-			partner.sendMessage(color(message));
-			return;
-		}
-
 		Bukkit.broadcastMessage(color(message));
 	}
 

@@ -31,7 +31,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
-import static com.okbeanok.marriagePlus.utils.TextUtils.color;
 
 public class LoveNoteManager {
 
@@ -80,13 +79,17 @@ public class LoveNoteManager {
 			return;
 		}
 
+		if (args.length >= 2 && args[1].equalsIgnoreCase("unread")) {
+			markNoteUnread(player, args);
+			return;
+		}
+
 		if (args.length >= 2 && args[1].equalsIgnoreCase("delete")) {
 			deleteNote(player, args);
 			return;
 		}
 
 		openNotesGui(player);
-		listNotes(player, args);
 	}
 
 	private void sendNote(Player player, String[] args) {
@@ -185,10 +188,6 @@ public class LoveNoteManager {
 		plugin.langManager().send(partner, "love-notes.received", Map.of(
 				"%player%", player.getName()
 		));
-
-		if (saveDigitally) {
-			plugin.langManager().send(partner, "love-notes.read-hint");
-		}
 	}
 
 	private void listNotes(Player player, String[] args) {
@@ -246,7 +245,7 @@ public class LoveNoteManager {
 				)))));
 
 		Component deleteButton = legacy(plugin.langManager().get("love-notes.list-delete-button"))
-				.clickEvent(ClickEvent.suggestCommand("/marry note delete " + noteNumber))
+				.clickEvent(ClickEvent.runCommand("/marry note delete " + noteNumber))
 				.hoverEvent(HoverEvent.showText(legacy(plugin.langManager().get("love-notes.list-delete-hover", Map.of(
 						"%number%", String.valueOf(noteNumber)
 				)))));
@@ -300,6 +299,47 @@ public class LoveNoteManager {
 		));
 		plugin.langManager().send(player, "love-notes.note-time", Map.of(
 				"%time%", formatTime(note.sentAt())
+		));
+	}
+
+	private void markNoteUnread(Player player, String[] args) {
+		if (args.length < 3) {
+			plugin.langManager().send(player, "love-notes.usage-unread");
+			return;
+		}
+
+		Integer noteNumber = parseNoteNumber(player, args[2]);
+
+		if (noteNumber == null) {
+			return;
+		}
+
+		List<LoveNote> inbox = notes.getOrDefault(player.getUniqueId(), new ArrayList<>());
+
+		if (noteNumber < 1 || noteNumber > inbox.size()) {
+			plugin.langManager().send(player, "love-notes.invalid-number");
+			return;
+		}
+
+		int noteIndex = noteNumber - 1;
+		LoveNote note = inbox.get(noteIndex);
+
+		if (note.unread()) {
+			plugin.langManager().send(player, "love-notes.already-unread");
+			return;
+		}
+
+		inbox.set(noteIndex, new LoveNote(
+				note.senderId(),
+				note.senderName(),
+				note.message(),
+				note.sentAt(),
+				true
+		));
+
+		plugin.dataManager().saveData();
+		plugin.langManager().send(player, "love-notes.marked-unread", Map.of(
+				"%number%", String.valueOf(noteNumber)
 		));
 	}
 
