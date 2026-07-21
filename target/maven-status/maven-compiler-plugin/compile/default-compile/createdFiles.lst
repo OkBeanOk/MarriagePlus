@@ -54,9 +54,11 @@ com\okbeanok\marriagePlus\utils\Metrics$AdvancedBarChart.class
 com\okbeanok\marriagePlus\services\quests\CoupleQuest.class
 com\okbeanok\marriagePlus\services\quests\QuestManager.class
 com\okbeanok\marriagePlus\services\leaderboards\LeaderboardManager$Couple.class
+com\okbeanok\marriagePlus\listeners\AchievementInventoryListener.class
 com\okbeanok\marriagePlus\listeners\ChatListener.class
 com\okbeanok\marriagePlus\services\ceremonies\CeremonyManager.class
 com\okbeanok\marriagePlus\services\families\FamilyMarriageCheckResult.class
+com\okbeanok\marriagePlus\commands\AdminCommandHandler.class
 com\okbeanok\marriagePlus\services\anniversaries\AnniversaryManager.class
 com\okbeanok\marriagePlus\utils\Metrics$AdvancedPie.class
 com\okbeanok\marriagePlus\utils\Metrics.class

@@ -170,40 +170,37 @@ public class AnniversaryManager {
 		String firstName = safeName(Bukkit.getOfflinePlayer(firstId));
 		String secondName = safeName(Bukkit.getOfflinePlayer(secondId));
 
-		rewardCommands(firstName, secondName, milestone);
-		rewardItems(firstId, secondId, firstName, secondName, milestone);
+		rewardCommands(firstName, secondName, String.valueOf(milestone));
+		rewardItems(firstId, secondId, firstName, secondName, String.valueOf(milestone));
 	}
 
-	private void rewardCommands(String firstName, String secondName, int milestone) {
-		List<String> commands = plugin.configs().anniversaries().getStringList("milestones." + milestone + ".commands");
-
-		if (commands.isEmpty()) {
-			return;
-		}
-
-		boolean rewardBoth = plugin.configs().anniversaries().getBoolean("reward-commands-for-both-partners", true);
+	private void rewardCommands(String firstName, String secondName, String achievementId) {
+		List<String> commands = plugin.configs().achievements().getStringList("rewards." + achievementId + ".commands");
 
 		for (String command : commands) {
-			Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command
+			String parsedCommand = command
 					.replace("%player%", firstName)
-					.replace("%partner%", secondName));
+					.replace("%partner%", secondName);
 
-			if (rewardBoth) {
-				Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command
-						.replace("%player%", secondName)
-						.replace("%partner%", firstName));
+			Bukkit.dispatchCommand(Bukkit.getConsoleSender(), parsedCommand);
+
+			if (plugin.configs().achievements().getBoolean("log-rewards", true)) {
+				plugin.getLogger().info(plugin.langManager().get("logs.achievement-reward-command", Map.of(
+						"%achievement%", achievementId,
+						"%command%", parsedCommand
+				)));
 			}
 		}
 	}
 
-	private void rewardItems(UUID firstId, UUID secondId, String firstName, String secondName, int milestone) {
-		List<Map<?, ?>> items = plugin.configs().anniversaries().getMapList("milestones." + milestone + ".items");
+	private void rewardItems(UUID firstId, UUID secondId, String firstName, String secondName, String achievementId) {
+		List<Map<?, ?>> items = plugin.configs().achievements().getMapList("rewards." + achievementId + ".items");
 
 		if (items.isEmpty()) {
 			return;
 		}
 
-		boolean rewardBoth = plugin.configs().anniversaries().getBoolean("reward-both-partners", true);
+		boolean rewardBoth = plugin.configs().achievements().getBoolean("rewards." + achievementId + ".reward-both", true);
 		Player first = Bukkit.getPlayer(firstId);
 		Player second = Bukkit.getPlayer(secondId);
 
@@ -212,6 +209,7 @@ public class AnniversaryManager {
 
 			if (first != null && firstReward != null) {
 				giveItem(first, firstReward);
+				logRewardItem(achievementId, first.getName(), firstReward);
 			}
 
 			if (!rewardBoth) {
@@ -222,9 +220,24 @@ public class AnniversaryManager {
 
 			if (second != null && secondReward != null) {
 				giveItem(second, secondReward);
+				logRewardItem(achievementId, second.getName(), secondReward);
 			}
 		}
 	}
+
+	private void logRewardItem(String achievementId, String playerName, ItemStack item) {
+		if (!plugin.configs().achievements().getBoolean("log-rewards", true)) {
+			return;
+		}
+
+		plugin.getLogger().info(plugin.langManager().get("logs.achievement-reward-item", Map.of(
+				"%achievement%", achievementId,
+				"%player%", playerName,
+				"%amount%", String.valueOf(item.getAmount()),
+				"%material%", item.getType().name()
+		)));
+	}
+
 
 	private ItemStack createRewardItem(Map<?, ?> itemMap, String playerName, String partnerName) {
 		Object materialObject = itemMap.get("material");
@@ -239,7 +252,7 @@ public class AnniversaryManager {
 		}
 
 		int amount = parseInt(itemMap.get("amount"), 1);
-		amount = Math.max(1, Math.min(amount, material.getMaxStackSize()));
+		amount = Math.clamp(amount, 1, material.getMaxStackSize());
 
 		ItemStack item = new ItemStack(material, amount);
 		ItemMeta meta = item.getItemMeta();

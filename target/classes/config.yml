@@ -29,6 +29,11 @@ settings:
     possessive: "their"
     display: "they/them"
 
+gui:
+  unlocked-material: LIME_DYE
+  locked-material: GRAY_DYE
+  show-hidden-placeholders: true
+
 titles:
   max-length: 32
   default-format: "&d❤ Married to %partner%"

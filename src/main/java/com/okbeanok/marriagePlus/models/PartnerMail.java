@@ -6,6 +6,7 @@ public record PartnerMail(
 		UUID senderId,
 		String senderName,
 		String message,
-		long sentAt
+		long sentAt,
+		boolean unread
 ) {
 }

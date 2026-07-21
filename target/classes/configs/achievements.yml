@@ -1,7 +1,9 @@
 # MarriagePlus Achievements Configuration
-
 broadcast-unlocks: true
 unlock-broadcast: "&d❤ &f%player% &7& &f%partner% &dunlocked achievement: &f%achievement%&d!"
+
+# Logs achievement reward commands/items to the console.
+log-rewards: true
 
 definitions:
   first_kiss:
@@ -9,60 +11,73 @@ definitions:
     description: "Use /marry kiss for the first time."
     trigger: "action"
     action: "kiss"
+    hidden: false
 
   first_hug:
     name: "First Hug"
     description: "Hug your partner for the first time."
     trigger: "action"
     action: "hug"
+    hidden: false
 
   first_gift:
     name: "First Gift"
     description: "Send your partner your first gift."
     trigger: "gift"
+    hidden: false
 
   first_couple_chat:
     name: "First Couple Chat"
     description: "Send your first private couple chat message."
     trigger: "chat"
+    hidden: false
 
   home_sweet_home:
     name: "Home Sweet Home"
     description: "Set your first couple home."
     trigger: "home"
+    hidden: false
 
   backpack_buddies:
     name: "Backpack Buddies"
     description: "Both partners allow backpack access."
     trigger: "backpack_buddies"
+    hidden: false
 
   anniversary_7:
     name: "7 Day Anniversary"
     description: "Stay married for 7 days."
     trigger: "anniversary"
     days: 7
+    hidden: false
 
   anniversary_30:
     name: "30 Day Anniversary"
     description: "Stay married for 30 days."
     trigger: "anniversary"
     days: 30
+    hidden: false
 
   anniversary_100:
     name: "100 Day Anniversary"
     description: "Stay married for 100 days."
     trigger: "anniversary"
     days: 100
+    hidden: false
 
   anniversary_365:
     name: "One Year Together"
     description: "Stay married for 365 days."
     trigger: "anniversary"
     days: 365
+    hidden: false
 
 rewards:
   first_kiss:
-    commands: []
+    reward-both: true
+    commands:
+      - "xp add %player% 5 points"
+      - "xp add %partner% 5 points"
     items:
       - material: "PINK_TULIP"
         amount: 1
@@ -70,14 +85,32 @@ rewards:
         lore:
           - "&7Awarded to &f%player%"
           - "&7for sharing a first kiss with &f%partner%&7."
+          - "&8A sweet little memory."
+        enchants:
+          unbreaking: 1
+        hide-enchants: true
+
+  first_hug:
+    reward-both: true
+    commands:
+      - "xp add %player% 5 points"
+      - "xp add %partner% 5 points"
+    items:
+      - material: "COOKIE"
+        amount: 8
+        name: "&6Warm Hug Cookies"
+        lore:
+          - "&7A cozy reward for your first hug."
+          - "&7Best shared with &f%partner%&7."
         enchants:
           unbreaking: 1
         hide-enchants: true
 
   first_gift:
+    reward-both: true
     commands:
-      - "give %player% diamond 1"
-      - "give %partner% diamond 1"
+      - "xp add %player% 10 points"
+      - "xp add %partner% 10 points"
     items:
       - material: "CHEST"
         amount: 1
@@ -85,6 +118,209 @@ rewards:
         lore:
           - "&7A keepsake for giving your"
           - "&7partner their first gift."
+          - "&8Generosity looks good on you."
         enchants:
           unbreaking: 1
         hide-enchants: true
+      - material: "DIAMOND"
+        amount: 1
+        name: "&bShared Sparkle"
+        lore:
+          - "&7A small sparkle to celebrate"
+          - "&7your first exchanged gift."
+
+  first_couple_chat:
+    reward-both: true
+    commands:
+      - "xp add %player% 5 points"
+      - "xp add %partner% 5 points"
+    items:
+      - material: "PAPER"
+        amount: 1
+        name: "&fPrivate Words"
+        lore:
+          - "&7Awarded for using couple chat."
+          - "&7A quiet message between"
+          - "&f%player% &7and &f%partner%&7."
+        enchants:
+          unbreaking: 1
+        hide-enchants: true
+
+  home_sweet_home:
+    reward-both: true
+    commands:
+      - "xp add %player% 15 points"
+      - "xp add %partner% 15 points"
+    items:
+      - material: "RED_BED"
+        amount: 1
+        name: "&cHome Sweet Home"
+        lore:
+          - "&7A symbol of the first place"
+          - "&7you and &f%partner% &7called home."
+        enchants:
+          unbreaking: 1
+        hide-enchants: true
+      - material: "LANTERN"
+        amount: 4
+        name: "&eCozy Home Lantern"
+        lore:
+          - "&7Light up your couple home."
+
+  backpack_buddies:
+    reward-both: true
+    commands:
+      - "xp add %player% 15 points"
+      - "xp add %partner% 15 points"
+    items:
+      - material: "BUNDLE"
+        amount: 1
+        name: "&dBackpack Buddy Bundle"
+        lore:
+          - "&7Awarded because both partners"
+          - "&7trust each other with backpacks."
+          - "&8Teamwork and trust."
+        enchants:
+          unbreaking: 1
+        hide-enchants: true
+      - material: "ENDER_CHEST"
+        amount: 1
+        name: "&5Shared Storage Token"
+        lore:
+          - "&7A magical token for couples"
+          - "&7who share everything."
+
+  anniversary_7:
+    reward-both: true
+    commands:
+      - "xp add %player% 25 points"
+      - "xp add %partner% 25 points"
+    items:
+      - material: "SUNFLOWER"
+        amount: 7
+        name: "&eOne Week Together"
+        lore:
+          - "&7Seven days married."
+          - "&7A bright start for"
+          - "&f%player% &7and &f%partner%&7."
+      - material: "GOLDEN_CARROT"
+        amount: 7
+        name: "&6Anniversary Snacks"
+        lore:
+          - "&7A tasty reward for"
+          - "&7your first week together."
+
+  anniversary_30:
+    reward-both: true
+    commands:
+      - "xp add %player% 75 points"
+      - "xp add %partner% 75 points"
+    items:
+      - material: "AMETHYST_SHARD"
+        amount: 16
+        name: "&dOne Month Memory Shards"
+        lore:
+          - "&7Thirty days of memories."
+          - "&7A month of love and teamwork."
+        enchants:
+          unbreaking: 1
+        hide-enchants: true
+      - material: "EXPERIENCE_BOTTLE"
+        amount: 16
+        name: "&aShared Experience"
+        lore:
+          - "&7A little extra experience"
+          - "&7for a month together."
+
+  anniversary_100:
+    reward-both: true
+    commands:
+      - "xp add %player% 150 points"
+      - "xp add %partner% 150 points"
+    items:
+      - material: "HEART_OF_THE_SEA"
+        amount: 1
+        name: "&bHeart of One Hundred Days"
+        lore:
+          - "&7Awarded for staying married"
+          - "&7for one hundred days."
+          - "&8A rare bond deserves a rare token."
+        enchants:
+          unbreaking: 1
+        hide-enchants: true
+      - material: "DIAMOND"
+        amount: 4
+        name: "&bCentury Diamonds"
+        lore:
+          - "&7A sparkling reward for"
+          - "&7100 days together."
+
+  anniversary_365:
+    reward-both: true
+    commands:
+      - "xp add %player% 500 points"
+      - "xp add %partner% 500 points"
+    items:
+      - material: "NETHER_STAR"
+        amount: 1
+        name: "&dOne Year Star"
+        lore:
+          - "&7A legendary reward for"
+          - "&7365 days of marriage."
+          - "&f%player% &7❤ &f%partner%"
+          - "&8A bond written in the stars."
+        enchants:
+          unbreaking: 1
+        hide-enchants: true
+      - material: "TOTEM_OF_UNDYING"
+        amount: 1
+        name: "&6Eternal Promise Totem"
+        lore:
+          - "&7A promise to keep protecting"
+          - "&7each other, no matter what."
+          -
+  secret_romantic:
+    reward-both: true
+    commands:
+      - "xp add %player% 100 points"
+      - "xp add %partner% 100 points"
+    items:
+      - material: "ROSE_BUSH"
+        amount: 1
+        name: "&dSecret Romantic"
+        lore:
+          - "&7You found a hidden romantic moment."
+          - "&8Some love stories have secrets."
+        enchants:
+          unbreaking: 1
+        hide-enchants: true
+
+  inseparable:
+    reward-both: true
+    commands:
+      - "xp add %player% 250 points"
+      - "xp add %partner% 250 points"
+    items:
+      - material: "ECHO_SHARD"
+        amount: 2
+        name: "&5Inseparable Echo"
+        lore:
+          - "&7Even across distance,"
+          - "&7your bond echoes back."
+        enchants:
+          unbreaking: 1
+        hide-enchants: true
+
+  midnight_love:
+    name: "Midnight Love"
+    description: "Share a secret moment after dark."
+    trigger: "action"
+    action: "cuddle"
+    hidden: true
+
+  eternal_bond:
+    name: "Eternal Bond"
+    description: "Stay married for 1000 days."
+    trigger: "anniversary"
+    days: 1000
+    hidden: true

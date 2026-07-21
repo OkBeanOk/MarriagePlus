@@ -1,10 +1,11 @@
-#Backpack Configuration
-#Yes.... i know this configuration is small at the moment but there will be updates for backpacks in the near future!!!!
-
 # Partner backpack settings.
 # Modes:
 # PLAYER_OWNED - each player owns their own backpack, partner opens it if allowed.
 # SHARED_COUPLE - both partners open the same shared couple backpack.
+#
+# Migration note:
+# PLAYER_OWNED and SHARED_COUPLE use separate stored backpack keys.
+# Switching modes will not delete old contents, but each mode may show a different backpack.
 mode: PLAYER_OWNED
 
 # Size must be a multiple of 9 between 9 and 54.

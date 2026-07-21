@@ -39,10 +39,12 @@ public class MailManager {
 
 		switch (args[1].toLowerCase()) {
 			case "send" -> sendMail(player, args);
-			case "inbox", "list" -> plugin.marriageGuiManager().openMailMenu(player);
+			case "read" -> readMail(player, args);
+			case "inbox", "list" -> listMail(player, args);
+			case "unread" -> markMailUnread(player, args);
 			case "delete" -> deleteMail(player, args);
 			case "clear" -> clearMail(player);
-			default -> plugin.marriageGuiManager().openMailMenu(player);
+			default -> sendUsage(player);
 		}
 	}
 
@@ -87,7 +89,8 @@ public class MailManager {
 				player.getUniqueId(),
 				player.getName(),
 				message,
-				System.currentTimeMillis()
+				System.currentTimeMillis(),
+				true
 		));
 
 		plugin.dataManager().saveData();
@@ -135,12 +138,26 @@ public class MailManager {
 
 		PartnerMail mail = inbox.get(mailNumber - 1);
 
+		if (mail.unread()) {
+			inbox.set(mailNumber - 1, new PartnerMail(
+					mail.senderId(),
+					mail.senderName(),
+					mail.message(),
+					mail.sentAt(),
+					false
+			));
+
+			plugin.dataManager().saveData();
+		}
+
 		plugin.langManager().send(player, "mail.message-header", Map.of(
 				"%number%", String.valueOf(mailNumber)
 		));
+
 		plugin.langManager().send(player, "mail.message-from", Map.of(
 				"%sender%", mail.senderName()
 		));
+
 		plugin.langManager().send(player, "mail.message-body", Map.of(
 				"%message%", mail.message()
 		));
@@ -150,6 +167,8 @@ public class MailManager {
 					"%time%", formatTime(mail.sentAt())
 			));
 		}
+
+
 	}
 
 	private void listMail(Player player, String[] args) {
@@ -200,6 +219,47 @@ public class MailManager {
 					"%page%", String.valueOf(page + 1)
 			));
 		}
+	}
+
+	private void markMailUnread(Player player, String[] args) {
+		if (args.length < 3) {
+			plugin.langManager().send(player, "mail.usage-unread");
+			return;
+		}
+
+		Integer mailNumber = parseMailNumber(player, args[2]);
+
+		if (mailNumber == null) {
+			return;
+		}
+
+		List<PartnerMail> inbox = inboxes.getOrDefault(player.getUniqueId(), new ArrayList<>());
+
+		if (mailNumber < 1 || mailNumber > inbox.size()) {
+			plugin.langManager().send(player, "mail.invalid-number");
+			return;
+		}
+
+		int mailIndex = mailNumber - 1;
+		PartnerMail mail = inbox.get(mailIndex);
+
+		if (mail.unread()) {
+			plugin.langManager().send(player, "mail.already-unread");
+			return;
+		}
+
+		inbox.set(mailIndex, new PartnerMail(
+				mail.senderId(),
+				mail.senderName(),
+				mail.message(),
+				mail.sentAt(),
+				true
+		));
+
+		plugin.dataManager().saveData();
+		plugin.langManager().send(player, "mail.marked-unread", Map.of(
+				"%number%", String.valueOf(mailNumber)
+		));
 	}
 
 	private void sendClickableMailLine(Player player, PartnerMail mail, int mailNumber) {
@@ -292,8 +352,16 @@ public class MailManager {
 			return;
 		}
 
+		long unread = inboxes.getOrDefault(player.getUniqueId(), new ArrayList<>()).stream()
+				.filter(PartnerMail::unread)
+				.count();
+
+		if (unread <= 0L) {
+			return;
+		}
+
 		plugin.langManager().send(player, "mail.unread", Map.of(
-				"%amount%", String.valueOf(inbox.size())
+				"%amount%", String.valueOf(unread)
 		));
 		plugin.langManager().send(player, "mail.read-hint");
 	}
@@ -301,6 +369,7 @@ public class MailManager {
 	private void sendUsage(Player player) {
 		plugin.langManager().send(player, "mail.usage-send");
 		plugin.langManager().send(player, "mail.usage-read");
+		plugin.langManager().send(player, "mail.usage-unread");
 		plugin.langManager().send(player, "mail.usage-delete");
 		plugin.langManager().send(player, "mail.usage-clear");
 	}

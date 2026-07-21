@@ -1,5 +1,5 @@
 name: MarriagePlus
-version: '1.4.6-A'
+version: '1.4.6-B'
 softdepend:
   - PlaceholderAPI
   - LuckPerms
@@ -14,7 +14,6 @@ commands:
     aliases:
       - marriage
       - spouse
-      -
   family:
     description: Family tree and adoption command
     usage: /family
@@ -29,6 +28,10 @@ permissions:
 
   marriageplus.priest:
     description: Allows priest marriage commands
+    default: op
+
+  marriageplus.admin.backpack:
+    description: Allows inspecting player partner backpacks
     default: op
 
   marriageplus.command.ring:

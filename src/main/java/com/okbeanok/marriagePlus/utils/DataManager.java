@@ -507,6 +507,7 @@ public class DataManager {
 				dataConfig.set(path + ".sender-name", mail.senderName());
 				dataConfig.set(path + ".message", mail.message());
 				dataConfig.set(path + ".sent-at", mail.sentAt());
+				dataConfig.set(path + ".unread", mail.unread());
 			}
 		}
 	}
@@ -856,9 +857,10 @@ public class DataManager {
 						String senderName = dataConfig.getString(path + ".sender-name", "Unknown");
 						String message = dataConfig.getString(path + ".message", "");
 						long sentAt = dataConfig.getLong(path + ".sent-at", System.currentTimeMillis());
+						boolean unread = dataConfig.getBoolean(path + ".unread", true);
 
 						if (!message.isBlank()) {
-							inbox.add(new PartnerMail(senderId, senderName, message, sentAt));
+							inbox.add(new PartnerMail(senderId, senderName, message, sentAt, unread));
 						}
 					} catch (IllegalArgumentException exception) {
 						plugin.getLogger().warning("Invalid partner mail entry in data.yml: " + path);

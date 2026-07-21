@@ -2,7 +2,7 @@
 
 enabled: true
 nearby-radius: 32.0
-nearby-check-seconds: 60
+nearby-check-seconds: 30
 
 definitions:
   mine_together:
@@ -12,6 +12,34 @@ definitions:
     amount: 150
     reward-xp: 75
 
+  mining_date:
+    name: "Mining Date"
+    description: "Mine a small batch of blocks while staying close to your partner."
+    type: "MINE_BLOCKS_NEAR_PARTNER"
+    amount: 50
+    reward-xp: 30
+
+  deep_mine_duo:
+    name: "Deep Mine Duo"
+    description: "Mine a large amount of blocks while adventuring together."
+    type: "MINE_BLOCKS_NEAR_PARTNER"
+    amount: 300
+    reward-xp: 150
+
+  stone_sweethearts:
+    name: "Stone Sweethearts"
+    description: "Break through the stone together as a couple."
+    type: "MINE_BLOCKS_NEAR_PARTNER"
+    amount: 500
+    reward-xp: 225
+
+  diamond_dream_team:
+    name: "Diamond Dream Team"
+    description: "Spend a long mining session near your partner."
+    type: "MINE_BLOCKS_NEAR_PARTNER"
+    amount: 1000
+    reward-xp: 450
+
   mob_duo:
     name: "Mob Duo"
     description: "Kill mobs while near your partner."
@@ -19,9 +47,107 @@ definitions:
     amount: 25
     reward-xp: 100
 
+  monster_date:
+    name: "Monster Date"
+    description: "Defeat a few mobs together."
+    type: "KILL_MOBS_NEAR_PARTNER"
+    amount: 10
+    reward-xp: 40
+
+  battle_couple:
+    name: "Battle Couple"
+    description: "Fight side-by-side with your partner."
+    type: "KILL_MOBS_NEAR_PARTNER"
+    amount: 50
+    reward-xp: 175
+
+  fearless_pair:
+    name: "Fearless Pair"
+    description: "Prove your strength by defeating many mobs together."
+    type: "KILL_MOBS_NEAR_PARTNER"
+    amount: 100
+    reward-xp: 350
+
+  monster_slaying_soulmates:
+    name: "Monster-Slaying Soulmates"
+    description: "Clear the darkness as an unstoppable couple."
+    type: "KILL_MOBS_NEAR_PARTNER"
+    amount: 250
+    reward-xp: 800
+
   quality_time:
     name: "Quality Time"
     description: "Spend time near your partner."
     type: "NEAR_PARTNER_MINUTES"
     amount: 15
     reward-xp: 60
+
+  quick_cuddle:
+    name: "Quick Cuddle"
+    description: "Spend a few peaceful minutes near your partner."
+    type: "NEAR_PARTNER_MINUTES"
+    amount: 5
+    reward-xp: 20
+
+  cozy_evening:
+    name: "Cozy Evening"
+    description: "Stay close to your partner for a relaxing evening."
+    type: "NEAR_PARTNER_MINUTES"
+    amount: 30
+    reward-xp: 120
+
+  inseparable_hour:
+    name: "Inseparable Hour"
+    description: "Spend a full hour close to your partner."
+    type: "NEAR_PARTNER_MINUTES"
+    amount: 60
+    reward-xp: 250
+
+  all_day_together:
+    name: "All Day Together"
+    description: "Spend a long time near your partner."
+    type: "NEAR_PARTNER_MINUTES"
+    amount: 180
+    reward-xp: 750
+
+  mining_and_mayhem:
+    name: "Mining and Mayhem"
+    description: "A demanding mining quest for dedicated couples."
+    type: "MINE_BLOCKS_NEAR_PARTNER"
+    amount: 750
+    reward-xp: 325
+
+  cave_protectors:
+    name: "Cave Protectors"
+    description: "Defeat mobs while exploring caves together."
+    type: "KILL_MOBS_NEAR_PARTNER"
+    amount: 75
+    reward-xp: 250
+
+  partner_presence:
+    name: "Partner Presence"
+    description: "Stay near your partner and enjoy each other's company."
+    type: "NEAR_PARTNER_MINUTES"
+    amount: 45
+    reward-xp: 180
+
+  loyal_companions:
+    name: "Loyal Companions"
+    description: "Spend meaningful time together as loyal companions."
+    type: "NEAR_PARTNER_MINUTES"
+    amount: 90
+    reward-xp: 400
+
+  couple_grind:
+    name: "Couple Grind"
+    description: "Put in serious work mining together."
+    type: "MINE_BLOCKS_NEAR_PARTNER"
+    amount: 1500
+    reward-xp: 650
+
+  warrior_hearts:
+    name: "Warrior Hearts"
+    description: "Fight through danger with your partner by your side."
+    type: "KILL_MOBS_NEAR_PARTNER"
+    amount: 150
+    reward-xp: 500

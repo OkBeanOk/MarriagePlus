@@ -64,10 +64,13 @@ public class FamilyCommand implements TabExecutor {
 				"accept",
 				"deny",
 				"decline",
+				"requests",
 				"leave",
 				"kick",
 				"rename",
 				"chat",
+				"info",
+				"members",
 				"tree",
 				"web"
 		), input);
@@ -75,7 +78,7 @@ public class FamilyCommand implements TabExecutor {
 
 	private List<String> completeSecondArg(String firstArg, String input) {
 		return switch (firstArg.toLowerCase(Locale.ROOT)) {
-			case "invite", "adopt", "kick" -> filter(onlinePlayerNames(), input);
+			case "invite", "adopt", "kick", "info", "members" -> filter(onlinePlayerNames(), input);
 			default -> Collections.emptyList();
 		};
 	}

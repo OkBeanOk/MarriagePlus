@@ -11,6 +11,7 @@ import org.bukkit.Registry;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -69,6 +70,7 @@ public class AchievementManager {
 			String trigger = plugin.configs().achievements().getString(path + ".trigger", "manual").toLowerCase(Locale.ROOT);
 			String action = plugin.configs().achievements().getString(path + ".action", "").toLowerCase(Locale.ROOT);
 			int days = plugin.configs().achievements().getInt(path + ".days", 0);
+			boolean hidden = plugin.configs().achievements().getBoolean(path + ".hidden", false);
 
 			definitions.put(id, new AchievementDefinition(
 					id,
@@ -76,19 +78,132 @@ public class AchievementManager {
 					description,
 					trigger,
 					action,
-					days
+					days,
+					hidden
 			));
 		}
 	}
 
 	public void achievementsCommand(Player player, String[] args) {
-		if (args.length >= 2 && args[1].equalsIgnoreCase("partner")) {
-			showPartnerAchievements(player);
+		if (args.length >= 2 && (args[1].equalsIgnoreCase("list") || args[1].equalsIgnoreCase("chat"))) {
+			showAchievements(player);
 			return;
 		}
 
-		showAchievements(player);
+		if (args.length >= 2 && args[1].equalsIgnoreCase("partner")) {
+			openAchievementsGui(player);
+			return;
+		}
+
+		openAchievementsGui(player);
 	}
+
+	private void openAchievementsGui(Player player) {
+		UUID partnerId = marriageManager.getPartnerId(player.getUniqueId());
+
+		if (partnerId == null) {
+			plugin.langManager().send(player, "marriage.not-married");
+			return;
+		}
+
+		String coupleKey = marriageManager.coupleKey(player.getUniqueId(), partnerId);
+		List<String> unlocked = unlockedAchievements.getOrDefault(coupleKey, new ArrayList<>());
+		boolean showHiddenPlaceholders = plugin.configs().achievements().getBoolean("gui.show-hidden-placeholders", true);
+		int visibleAchievements = visibleAchievementCount(unlocked, showHiddenPlaceholders);
+
+		int inventorySize = Math.clamp(((visibleAchievements + 8) / 9) * 9, 9, 54);
+		String title = color(plugin.langManager().get("achievements.gui-title"));
+
+		Inventory inventory = Bukkit.createInventory(null, inventorySize, title);
+
+		int slot = 0;
+
+		for (AchievementDefinition definition : definitions.values()) {
+			boolean hasUnlocked = unlocked.contains(definition.id());
+
+			if (definition.hidden() && !hasUnlocked && !showHiddenPlaceholders) {
+				continue;
+			}
+
+			if (slot >= inventory.getSize()) {
+				break;
+			}
+
+			inventory.setItem(slot, createAchievementItem(player, definition, hasUnlocked));
+			slot++;
+		}
+
+		player.openInventory(inventory);
+	}
+
+	private int visibleAchievementCount(List<String> unlocked, boolean showHiddenPlaceholders) {
+		int count = 0;
+
+		for (AchievementDefinition definition : definitions.values()) {
+			boolean hasUnlocked = unlocked.contains(definition.id());
+
+			if (definition.hidden() && !hasUnlocked && !showHiddenPlaceholders) {
+				continue;
+			}
+
+			count++;
+		}
+
+		return count;
+	}
+
+	private ItemStack createAchievementItem(Player player, AchievementDefinition definition, boolean unlocked) {
+		boolean hiddenLocked = definition.hidden() && !unlocked;
+
+		String materialName = plugin.configs().achievements().getString(
+				unlocked ? "gui.unlocked-material" : "gui.locked-material",
+				unlocked ? "LIME_DYE" : "GRAY_DYE"
+		);
+
+		Material material = Material.matchMaterial(materialName == null ? "" : materialName.toUpperCase(Locale.ROOT));
+
+		if (material == null || material.isAir()) {
+			material = unlocked ? Material.LIME_DYE : Material.GRAY_DYE;
+		}
+
+		ItemStack item = new ItemStack(material);
+		ItemMeta meta = item.getItemMeta();
+
+		if (meta == null) {
+			return item;
+		}
+
+		String achievementName = hiddenLocked
+				? plugin.langManager().get("achievements.hidden-name")
+				: definition.name();
+
+		String achievementDescription = hiddenLocked
+				? plugin.langManager().get("achievements.hidden-description")
+				: definition.description();
+
+		List<String> lore = new ArrayList<>();
+		lore.add(color(plugin.langManager().get("achievements.gui-description", Map.of(
+				"%description%", achievementDescription
+		))));
+		lore.add("");
+
+		if (!hiddenLocked) {
+			lore.add(color(progressLine(player, definition, unlocked)));
+			lore.add("");
+		}
+
+		lore.add(color(plugin.langManager().get(unlocked ? "achievements.gui-status-unlocked" : "achievements.gui-status-locked")));
+
+		meta.setDisplayName(color(plugin.langManager().get(
+				unlocked ? "achievements.gui-item-unlocked" : "achievements.gui-item-locked",
+				Map.of("%achievement%", achievementName)
+		)));
+		meta.setLore(lore);
+
+		item.setItemMeta(meta);
+		return item;
+	}
+
 
 	public void showAchievements(Player player) {
 		UUID partnerId = marriageManager.getPartnerId(player.getUniqueId());
@@ -110,11 +225,61 @@ public class AchievementManager {
 		for (AchievementDefinition definition : definitions.values()) {
 			boolean hasUnlocked = unlocked.contains(definition.id());
 
+			if (definition.hidden() && !hasUnlocked) {
+				continue;
+			}
+
 			plugin.langManager().send(player, hasUnlocked ? "achievements.unlocked" : "achievements.locked", Map.of(
 					"%achievement%", definition.name(),
 					"%description%", definition.description()
 			));
+
+			plugin.langManager().send(player, "achievements.progress-line", Map.of(
+					"%progress%", progressText(player, definition, hasUnlocked)
+			));
 		}
+	}
+
+	private String progressLine(Player player, AchievementDefinition definition, boolean unlocked) {
+		return plugin.langManager().get("achievements.gui-progress", Map.of(
+				"%progress%", progressText(player, definition, unlocked)
+		));
+	}
+
+	private String progressText(Player player, AchievementDefinition definition, boolean unlocked) {
+		if (unlocked) {
+			return plugin.langManager().get("achievements.progress-complete");
+		}
+
+		if (definition.trigger().equalsIgnoreCase("anniversary")) {
+			long currentDays = marriedDays(player);
+			int requiredDays = Math.max(0, definition.days());
+
+			return plugin.langManager().get("achievements.progress-days", Map.of(
+					"%current%", String.valueOf(Math.min(currentDays, requiredDays)),
+					"%required%", String.valueOf(requiredDays)
+			));
+		}
+
+		if (definition.trigger().equalsIgnoreCase("action") && !definition.action().isBlank()) {
+			return plugin.langManager().get("achievements.progress-action", Map.of(
+					"%action%", definition.action()
+			));
+		}
+
+		return plugin.langManager().get("achievements.progress-trigger", Map.of(
+				"%trigger%", definition.trigger()
+		));
+	}
+
+	private long marriedDays(Player player) {
+		long date = plugin.dataManager().dataConfig().getLong("marriage-dates." + player.getUniqueId(), 0L);
+
+		if (date <= 0L) {
+			return 0L;
+		}
+
+		return Math.max(0L, (System.currentTimeMillis() - date) / MILLIS_PER_DAY);
 	}
 
 	public void showPartnerAchievements(Player player) {
@@ -179,6 +344,58 @@ public class AchievementManager {
 
 		reward(firstId, secondId, achievementId);
 		notifyUnlock(firstId, secondId, definition);
+	}
+
+	public boolean grant(UUID playerId, String achievementId) {
+		UUID partnerId = marriageManager.getPartnerId(playerId);
+
+		if (partnerId == null || !definitions.containsKey(achievementId)) {
+			return false;
+		}
+
+		String coupleKey = marriageManager.coupleKey(playerId, partnerId);
+		List<String> unlocked = unlockedAchievements.computeIfAbsent(coupleKey, ignored -> new ArrayList<>());
+
+		if (unlocked.contains(achievementId)) {
+			return false;
+		}
+
+		unlock(playerId, partnerId, achievementId);
+		return true;
+	}
+
+	public boolean revoke(UUID playerId, String achievementId) {
+		UUID partnerId = marriageManager.getPartnerId(playerId);
+
+		if (partnerId == null || !definitions.containsKey(achievementId)) {
+			return false;
+		}
+
+		String coupleKey = marriageManager.coupleKey(playerId, partnerId);
+		List<String> unlocked = unlockedAchievements.get(coupleKey);
+
+		if (unlocked == null || !unlocked.remove(achievementId)) {
+			return false;
+		}
+
+		if (unlocked.isEmpty()) {
+			unlockedAchievements.remove(coupleKey);
+		}
+
+		plugin.dataManager().saveData();
+		return true;
+	}
+
+	public boolean hasUnlocked(UUID playerId, String achievementId) {
+		UUID partnerId = marriageManager.getPartnerId(playerId);
+
+		if (partnerId == null) {
+			return false;
+		}
+
+		String coupleKey = marriageManager.coupleKey(playerId, partnerId);
+
+		return unlockedAchievements.getOrDefault(coupleKey, new ArrayList<>()).contains(achievementId);
 	}
 
 	public void checkAnniversaryAchievements(Player player) {
@@ -317,7 +534,7 @@ public class AchievementManager {
 		}
 
 		int amount = parseInt(itemMap.get("amount"), 1);
-		amount = Math.max(1, Math.min(amount, material.getMaxStackSize()));
+		amount = Math.clamp(amount, 1, material.getMaxStackSize());
 
 		ItemStack item = new ItemStack(material, amount);
 		ItemMeta meta = item.getItemMeta();

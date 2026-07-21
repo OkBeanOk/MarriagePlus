@@ -6,6 +6,7 @@ public record AchievementDefinition(
 		String description,
 		String trigger,
 		String action,
-		int days
+		int days,
+		boolean hidden
 ) {
 }

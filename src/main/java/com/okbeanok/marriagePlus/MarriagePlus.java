@@ -216,6 +216,7 @@ public final class MarriagePlus extends JavaPlugin {
 		Bukkit.getPluginManager().registerEvents(new QuestListener(marriageManager, questManager), this);
 		Bukkit.getPluginManager().registerEvents(new RingListener(this, ringManager), this);
 		Bukkit.getPluginManager().registerEvents(new UpdateNotificationListener(this, updateChecker), this);
+		Bukkit.getPluginManager().registerEvents(new AchievementInventoryListener(this), this);
 	}
 
 	public DataManager dataManager() {

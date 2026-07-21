@@ -66,7 +66,7 @@ public class FamilyManager {
 			case "kick" -> kick(player, args);
 			case "rename" -> rename(player, args);
 			case "chat" -> chat(player, args);
-			case "tree", "web" -> web(player, args);
+			case "tree", "web" -> web(player);
 			case "info" -> info(player, args);
 			case "members" -> members(player);
 			case "requests" -> requests(player);
@@ -785,29 +785,7 @@ public class FamilyManager {
 		}
 	}
 
-	private void web(Player player, String[] args) {
-		if (args.length >= 2 && args[1].equalsIgnoreCase("export")) {
-			if (!player.hasPermission("marriageplus.admin")) {
-				plugin.langManager().send(player, "general.no-permission");
-				return;
-			}
-
-			webExporter.export();
-			plugin.langManager().send(player, "family.web-exported");
-
-			String publicUrl = configuredPublicUrl();
-
-			if (!publicUrl.isBlank()) {
-				Component message = legacy(color("&d&l[OPEN FAMILY WEB] &7Click to open the public family page."))
-						.clickEvent(ClickEvent.openUrl(publicUrl))
-						.hoverEvent(HoverEvent.showText(legacy(color("&7Open &f" + publicUrl))));
-
-				player.sendMessage(message);
-			}
-
-			return;
-		}
-
+	private void web(Player player) {
 		sendTreeLink(player);
 	}
 

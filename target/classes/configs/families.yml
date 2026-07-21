@@ -2,7 +2,6 @@
 
 enabled: true
 
-
 invite-expire-seconds: 60
 leave-confirm-seconds: 30
 kick-confirm-seconds: 30
